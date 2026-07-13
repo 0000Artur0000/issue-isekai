@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -55,15 +56,33 @@ public final class SubmissionQueue implements AutoCloseable {
         });
     }
 
-    public CompletableFuture<List<CreateReportRequest>> load() {
+    public CompletableFuture<List<CreateReportRequest>> load(int limit) {
         return async(() -> {
             createDirectories();
             try (var files = Files.list(queueDirectory)) {
                 return files.filter(this::isReady)
                         .sorted()
+                        .limit(limit)
                         .map(this::read)
                         .toList();
             }
+        });
+    }
+
+    public CompletableFuture<Void> delete(UUID submissionId) {
+        return async(() -> {
+            Files.deleteIfExists(readyPath(submissionId));
+            return null;
+        });
+    }
+
+    public CompletableFuture<Path> moveToDeadLetter(UUID submissionId) {
+        return async(() -> {
+            createDirectories();
+            return Files.move(
+                    readyPath(submissionId),
+                    deadLetterDirectory.resolve(submissionId + ".yml"),
+                    StandardCopyOption.ATOMIC_MOVE);
         });
     }
 
@@ -87,6 +106,10 @@ public final class SubmissionQueue implements AutoCloseable {
 
     private boolean isReady(Path path) {
         return Files.isRegularFile(path) && path.getFileName().toString().endsWith(".yml");
+    }
+
+    private Path readyPath(UUID submissionId) {
+        return queueDirectory.resolve(submissionId + ".yml");
     }
 
     private CreateReportRequest read(Path path) {

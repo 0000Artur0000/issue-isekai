@@ -24,7 +24,7 @@ class SubmissionQueueTest {
         }
 
         try (var restartedQueue = new SubmissionQueue(directory, 1)) {
-            assertEquals(java.util.List.of(submission), restartedQueue.load().join());
+            assertEquals(java.util.List.of(submission), restartedQueue.load(1).join());
             assertThrows(CompletionException.class, () -> restartedQueue.enqueue(submission).join());
         }
         assertTrue(Files.isDirectory(directory.resolve("dead-letter")));
