@@ -1,0 +1,15 @@
+name: IssueIsekai
+version: "${version}"
+main: ru.arzer0.issueisekai.plugin.IssueIsekaiPlugin
+api-version: "26.1"
+softdepend:
+  - Denizen
+commands:
+  bugreport:
+    description: Open the bug report dialog
+    aliases:
+      - bugreprt
+    permission: bugreport.submit
+permissions:
+  bugreport.submit:
+    default: true

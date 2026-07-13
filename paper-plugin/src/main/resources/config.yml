@@ -1,0 +1,16 @@
+panel-url: "http://127.0.0.1:8080"
+api-key: "replace-me"
+categories:
+  - id: gameplay
+    title: "Gameplay"
+  - id: performance
+    title: "Performance"
+  - id: exploit
+    title: "Exploit"
+  - id: other
+    title: "Other"
+request-timeout-seconds: 10
+retry-interval-seconds: 30
+max-deliveries-per-run: 20
+max-queued-reports: 1000
+cooldown-seconds: 60

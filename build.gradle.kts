@@ -19,6 +19,16 @@ subprojects {
         toolchain.languageVersion = JavaLanguageVersion.of(25)
     }
 
+    extensions.configure<SourceSetContainer> {
+        named("test") {
+            resources.srcDir(rootProject.file("contracts"))
+        }
+    }
+
+    tasks.withType<Test>().configureEach {
+        useJUnitPlatform()
+    }
+
     dependencyLocking {
         lockAllConfigurations()
     }
