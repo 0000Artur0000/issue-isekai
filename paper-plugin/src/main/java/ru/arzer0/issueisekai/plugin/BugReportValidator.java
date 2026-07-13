@@ -20,7 +20,7 @@ public final class BugReportValidator {
         this.cooldown = cooldown;
     }
 
-    public synchronized Result validate(UUID playerId, String category, String description) {
+    public Result validate(String category, String description) {
         String normalizedCategory = category == null ? "" : category.trim();
         String normalizedDescription = description == null ? "" : description.trim();
         if (!categories.contains(normalizedCategory)) {
@@ -34,13 +34,21 @@ public final class BugReportValidator {
                     normalizedDescription,
                     "Description must contain between 10 and 1000 characters.");
         }
+        return new Result(true, normalizedCategory, normalizedDescription, null);
+    }
+
+    public synchronized Result validate(UUID playerId, String category, String description) {
+        Result result = validate(category, description);
+        if (!result.accepted()) {
+            return result;
+        }
         Instant now = Instant.now();
         Instant allowedAt = nextSubmission.get(playerId);
         if (allowedAt != null && now.isBefore(allowedAt)) {
-            return new Result(false, normalizedCategory, normalizedDescription, "Please wait before submitting again.");
+            return new Result(false, result.category(), result.description(), "Please wait before submitting again.");
         }
         nextSubmission.put(playerId, now.plus(cooldown));
-        return new Result(true, normalizedCategory, normalizedDescription, null);
+        return result;
     }
 
     public record Result(boolean accepted, String category, String description, String error) {}

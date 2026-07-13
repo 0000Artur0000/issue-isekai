@@ -7,6 +7,7 @@ import ru.arzer0.issueisekai.plugin.command.BugReportCommand;
 import ru.arzer0.issueisekai.plugin.delivery.DeliveryWorker;
 import ru.arzer0.issueisekai.plugin.denizen.DenizenBridge;
 import ru.arzer0.issueisekai.plugin.dialog.BugReportDialog;
+import ru.arzer0.issueisekai.plugin.events.BugReportEvents;
 import ru.arzer0.issueisekai.plugin.http.ReportClient;
 import ru.arzer0.issueisekai.plugin.queue.SubmissionQueue;
 
@@ -22,13 +23,18 @@ public final class IssueIsekaiPlugin extends JavaPlugin {
         pluginConfig = PluginConfig.load(getConfig());
         bugReportDialog = new BugReportDialog(pluginConfig.categories());
         var validator = new BugReportValidator(pluginConfig.categories(), pluginConfig.cooldown());
+        BugReportEvents reportEvents = new BugReportEvents() {};
+        if (getServer().getPluginManager().isPluginEnabled("Denizen")) {
+            reportEvents = DenizenBridge.register();
+            getLogger().info("Denizen bridge enabled");
+        }
         submissionQueue = new SubmissionQueue(getDataFolder().toPath(), pluginConfig.maxQueuedReports());
         submissionQueue.initialize().exceptionally(error -> {
             getLogger().log(Level.SEVERE, "Could not initialize submission queue", error);
             return null;
         });
         Objects.requireNonNull(getCommand("bugreport"))
-                .setExecutor(new BugReportCommand(this, bugReportDialog, validator, submissionQueue));
+                .setExecutor(new BugReportCommand(this, bugReportDialog, validator, submissionQueue, reportEvents));
         var reportClient =
                 new ReportClient(pluginConfig.panelUrl(), pluginConfig.apiKey(), pluginConfig.requestTimeout());
         deliveryWorker = new DeliveryWorker(
@@ -36,12 +42,10 @@ public final class IssueIsekaiPlugin extends JavaPlugin {
                 reportClient,
                 pluginConfig.retryInterval(),
                 pluginConfig.maxDeliveriesPerRun(),
-                getLogger());
+                getLogger(),
+                reportEvents,
+                task -> getServer().getScheduler().runTask(this, task));
         deliveryWorker.start();
-        if (getServer().getPluginManager().isPluginEnabled("Denizen")) {
-            DenizenBridge.register();
-            getLogger().info("Denizen bridge enabled");
-        }
     }
 
     @Override

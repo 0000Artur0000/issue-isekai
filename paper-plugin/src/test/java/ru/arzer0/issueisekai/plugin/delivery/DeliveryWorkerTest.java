@@ -13,12 +13,14 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import ru.arzer0.issueisekai.plugin.api.CreateReportRequest;
 import ru.arzer0.issueisekai.plugin.api.CreateReportResponse;
 import ru.arzer0.issueisekai.plugin.api.ReportJson;
+import ru.arzer0.issueisekai.plugin.events.BugReportEvents;
 import ru.arzer0.issueisekai.plugin.http.ReportClient;
 import ru.arzer0.issueisekai.plugin.queue.SubmissionQueue;
 
@@ -36,6 +38,13 @@ class DeliveryWorkerTest {
             exchange.close();
         });
         server.start();
+        var delivered = new AtomicReference<UUID>();
+        BugReportEvents events = new BugReportEvents() {
+            @Override
+            public void delivered(CreateReportRequest submission, UUID reportId) {
+                delivered.set(submission.submissionId());
+            }
+        };
 
         try (var queue = new SubmissionQueue(directory, 10);
                 var worker = new DeliveryWorker(
@@ -46,7 +55,9 @@ class DeliveryWorkerTest {
                                 Duration.ofSeconds(2)),
                         Duration.ofMinutes(1),
                         20,
-                        Logger.getAnonymousLogger())) {
+                        Logger.getAnonymousLogger(),
+                        events,
+                        Runnable::run)) {
             CreateReportRequest first = submission("11111111-1111-1111-1111-111111111111");
             queue.enqueue(first).join();
 
@@ -56,6 +67,7 @@ class DeliveryWorkerTest {
             status.set(201);
             worker.runOnce();
             assertTrue(queue.load(20).join().isEmpty());
+            assertEquals(first.submissionId(), delivered.get());
 
             CreateReportRequest second = submission("33333333-3333-3333-3333-333333333333");
             queue.enqueue(second).join();

@@ -13,6 +13,7 @@ import org.bukkit.plugin.Plugin;
 import ru.arzer0.issueisekai.plugin.BugReportValidator;
 import ru.arzer0.issueisekai.plugin.api.CreateReportRequest;
 import ru.arzer0.issueisekai.plugin.dialog.BugReportDialog;
+import ru.arzer0.issueisekai.plugin.events.BugReportEvents;
 import ru.arzer0.issueisekai.plugin.queue.SubmissionQueue;
 
 public final class BugReportCommand implements CommandExecutor {
@@ -20,13 +21,19 @@ public final class BugReportCommand implements CommandExecutor {
     private final BugReportDialog dialog;
     private final BugReportValidator validator;
     private final SubmissionQueue queue;
+    private final BugReportEvents events;
 
     public BugReportCommand(
-            Plugin plugin, BugReportDialog dialog, BugReportValidator validator, SubmissionQueue queue) {
+            Plugin plugin,
+            BugReportDialog dialog,
+            BugReportValidator validator,
+            SubmissionQueue queue,
+            BugReportEvents events) {
         this.plugin = plugin;
         this.dialog = dialog;
         this.validator = validator;
         this.queue = queue;
+        this.events = events;
     }
 
     @Override
@@ -36,18 +43,35 @@ public final class BugReportCommand implements CommandExecutor {
             return true;
         }
         dialog.open(player, (target, response) -> {
-            BugReportValidator.Result result =
-                    validator.validate(target.getUniqueId(), response.category(), response.description());
+            BugReportValidator.Result result = validator.validate(response.category(), response.description());
             if (!result.accepted()) {
                 target.sendMessage(Component.text(result.error()));
                 return;
             }
-            queue.enqueue(submission(target, result)).whenComplete((path, error) -> Bukkit.getScheduler()
+            CreateReportRequest submission = submission(target, result);
+            BugReportEvents.PreSubmitResult eventResult = events.beforeSubmit(target, submission);
+            if (eventResult.cancelled()) {
+                target.sendMessage(Component.text("Bug report cancelled."));
+                return;
+            }
+            result = validator.validate(target.getUniqueId(), eventResult.category(), eventResult.description());
+            if (!result.accepted()) {
+                target.sendMessage(Component.text(result.error()));
+                return;
+            }
+            submission = withContent(submission, result);
+            CreateReportRequest queuedSubmission = submission;
+            queue.enqueue(queuedSubmission).whenComplete((path, error) -> Bukkit.getScheduler()
                     .runTask(
                             plugin,
-                            () -> target.sendMessage(Component.text(error == null
-                                    ? "Bug report queued."
-                                    : "Could not queue bug report. Please try again later."))));
+                            () -> {
+                                if (error == null) {
+                                    events.queued(target, queuedSubmission);
+                                    target.sendMessage(Component.text("Bug report queued."));
+                                } else {
+                                    target.sendMessage(Component.text("Could not queue bug report. Please try again later."));
+                                }
+                            }));
         });
         return true;
     }
@@ -67,5 +91,22 @@ public final class BugReportCommand implements CommandExecutor {
                 player.getGameMode().name(),
                 Instant.now().toString(),
                 Bukkit.getVersion());
+    }
+
+    private static CreateReportRequest withContent(
+            CreateReportRequest submission, BugReportValidator.Result result) {
+        return new CreateReportRequest(
+                submission.submissionId(),
+                result.category(),
+                result.description(),
+                submission.playerUuid(),
+                submission.playerName(),
+                submission.worldKey(),
+                submission.x(),
+                submission.y(),
+                submission.z(),
+                submission.gameMode(),
+                submission.reportedAt(),
+                submission.paperVersion());
     }
 }
