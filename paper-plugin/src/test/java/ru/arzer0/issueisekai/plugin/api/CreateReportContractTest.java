@@ -34,6 +34,8 @@ class CreateReportContractTest {
         }
 
         assertEquals(JsonParser.parseString(fixture), JsonParser.parseString(ReportJson.write(request)));
+        assertEquals(request, ReportJson.read(ReportJson.write(request), CreateReportRequest.class));
+        assertEquals(request, SubmissionYaml.read(SubmissionYaml.write(request)));
 
         var response =
                 new CreateReportResponse(

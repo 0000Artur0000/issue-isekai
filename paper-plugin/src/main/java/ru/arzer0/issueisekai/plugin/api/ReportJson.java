@@ -15,4 +15,8 @@ public final class ReportJson {
     public static String write(Object value) {
         return GSON.toJson(value);
     }
+
+    public static <T> T read(String json, Class<T> type) {
+        return GSON.fromJson(json, type);
+    }
 }
