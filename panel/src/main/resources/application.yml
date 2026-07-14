@@ -8,6 +8,8 @@ spring:
   jackson:
     time-zone: UTC
   jpa:
+    hibernate:
+      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate:
