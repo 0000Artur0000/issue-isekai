@@ -83,6 +83,8 @@ class ReportWebControllerTest {
                 null,
                 now,
                 now));
+        when(reports.events(reportId)).thenReturn(List.of(new ReportQueueService.AuditEvent(
+                1, "CREATED", null, null, "NEW", now)));
     }
 
     @Test
@@ -96,6 +98,8 @@ class ReportWebControllerTest {
         mvc.perform(get("/reports/{id}", reportId).with(operator))
                 .andExpect(status().isOk())
                 .andExpect(content().string(Matchers.containsString("Player cannot open the chest.")))
+                .andExpect(content().string(Matchers.containsString("CREATED")))
+                .andExpect(content().string(Matchers.containsString("System")))
                 .andExpect(content().string(Matchers.containsString("_csrf")));
         mvc.perform(post("/reports/{id}", reportId)
                         .with(operator)
@@ -112,6 +116,7 @@ class ReportWebControllerTest {
                 ReportQueueService.Status.DUPLICATE,
                 ReportQueueService.Priority.HIGH,
                 assigneeId,
-                duplicateId);
+                duplicateId,
+                "operator");
     }
 }

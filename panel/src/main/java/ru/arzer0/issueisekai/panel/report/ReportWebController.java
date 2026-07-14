@@ -1,6 +1,7 @@
 package ru.arzer0.issueisekai.panel.report;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.security.Principal;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -46,6 +47,7 @@ public class ReportWebController {
     @GetMapping("/reports/{id}")
     String report(@PathVariable UUID id, HttpServletRequest request, Model model) {
         model.addAttribute("report", reports.find(id));
+        model.addAttribute("events", reports.events(id));
         model.addAttribute("assignees", reports.assignees());
         model.addAttribute("statuses", ReportQueueService.Status.values());
         model.addAttribute("priorities", ReportQueueService.Priority.values());
@@ -60,8 +62,9 @@ public class ReportWebController {
             @RequestParam ReportQueueService.Priority priority,
             @RequestParam(required = false) UUID assigneeId,
             @RequestParam(required = false) UUID duplicateOfId,
+            Principal principal,
             RedirectAttributes redirect) {
-        reports.update(id, status, priority, assigneeId, duplicateOfId);
+        reports.update(id, status, priority, assigneeId, duplicateOfId, principal.getName());
         redirect.addFlashAttribute("message", "Report updated");
         return "redirect:/reports/" + id;
     }

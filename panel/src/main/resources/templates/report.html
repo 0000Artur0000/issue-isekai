@@ -58,6 +58,15 @@
         </form>
         <p th:if="${report.duplicateOfId}">Original: <a th:href="@{/reports/{id}(id=${report.duplicateOfId})}" th:text="${report.duplicateOfId}"></a></p>
     </section>
+    <section>
+        <h2>History</h2>
+        <article th:each="event : ${events}">
+            <h3 th:text="${event.eventType}"></h3>
+            <p><span th:text="${event.actorName ?: 'System'}"></span> · <time th:text="${event.createdAt}"></time></p>
+            <pre th:if="${event.oldValue}" th:text="${event.oldValue}"></pre>
+            <pre th:if="${event.newValue}" th:text="${event.newValue}"></pre>
+        </article>
+    </section>
 </main>
 </body>
 </html>

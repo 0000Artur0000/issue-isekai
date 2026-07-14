@@ -110,3 +110,8 @@ dt {
 dd {
     margin: 0 0 .8rem;
 }
+
+pre {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}

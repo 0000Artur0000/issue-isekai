@@ -1,5 +1,7 @@
 package ru.arzer0.issueisekai.panel.report;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -23,9 +25,12 @@ public class ReportQueueService {
             LEFT JOIN users u ON u.id = r.assignee_id
             """;
     private final ObjectProvider<NamedParameterJdbcTemplate> databases;
+    private final ObjectMapper json;
 
-    public ReportQueueService(ObjectProvider<NamedParameterJdbcTemplate> databases) {
+    public ReportQueueService(
+            ObjectProvider<NamedParameterJdbcTemplate> databases, ObjectMapper json) {
         this.databases = databases;
+        this.json = json;
     }
 
     @Transactional(readOnly = true)
@@ -113,13 +118,35 @@ public class ReportQueueService {
                         resultSet.getObject("id", UUID.class), resultSet.getString("name")));
     }
 
+    @Transactional(readOnly = true)
+    public List<AuditEvent> events(UUID reportId) {
+        return database().query(
+                """
+                        SELECT e.id, e.event_type, u.username AS actor_name,
+                               e.old_value, e.new_value, e.created_at
+                        FROM report_events e
+                        LEFT JOIN users u ON u.id = e.actor_id
+                        WHERE e.report_id = :reportId
+                        ORDER BY e.created_at, e.id
+                        """,
+                new MapSqlParameterSource("reportId", reportId),
+                (resultSet, row) -> new AuditEvent(
+                        resultSet.getLong("id"),
+                        resultSet.getString("event_type"),
+                        resultSet.getString("actor_name"),
+                        resultSet.getString("old_value"),
+                        resultSet.getString("new_value"),
+                        instant(resultSet, "created_at")));
+    }
+
     @Transactional
     public void update(
             UUID id,
             Status status,
             Priority priority,
             UUID assigneeId,
-            UUID duplicateOfId) {
+            UUID duplicateOfId,
+            String actorUsername) {
         if (status == null || priority == null) {
             throw new IllegalArgumentException("Status and priority are required");
         }
@@ -140,13 +167,20 @@ public class ReportQueueService {
         } else {
             duplicateOfId = null;
         }
+        WorkflowState oldState = state(database, id);
+        WorkflowState newState = new WorkflowState(status, priority, assigneeId, duplicateOfId);
+        if (oldState.equals(newState)) {
+            return;
+        }
+        UUID actorId = actor(database, actorUsername);
+        OffsetDateTime updatedAt = OffsetDateTime.ofInstant(Instant.now(), ZoneOffset.UTC);
         MapSqlParameterSource parameters = new MapSqlParameterSource()
                 .addValue("id", id)
                 .addValue("status", status.name())
                 .addValue("priority", priority.name())
                 .addValue("assigneeId", assigneeId)
                 .addValue("duplicateOfId", duplicateOfId)
-                .addValue("updatedAt", OffsetDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
+                .addValue("updatedAt", updatedAt);
         int updated = database.update(
                 """
                         UPDATE reports
@@ -157,6 +191,58 @@ public class ReportQueueService {
                 parameters);
         if (updated == 0) {
             throw new IllegalArgumentException("Report not found");
+        }
+        database.update(
+                """
+                        INSERT INTO report_events (
+                            report_id, actor_id, event_type, old_value, new_value, created_at
+                        ) VALUES (
+                            :id, :actorId, 'UPDATED', :oldValue, :newValue, :updatedAt
+                        )
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("id", id)
+                        .addValue("actorId", actorId)
+                        .addValue("oldValue", serialize(oldState))
+                        .addValue("newValue", serialize(newState))
+                        .addValue("updatedAt", updatedAt));
+    }
+
+    private static WorkflowState state(NamedParameterJdbcTemplate database, UUID id) {
+        List<WorkflowState> states = database.query(
+                """
+                        SELECT status, priority, assignee_id, duplicate_of_id
+                        FROM reports
+                        WHERE id = :id
+                        """,
+                new MapSqlParameterSource("id", id),
+                (resultSet, row) -> new WorkflowState(
+                        Status.valueOf(resultSet.getString("status")),
+                        Priority.valueOf(resultSet.getString("priority")),
+                        resultSet.getObject("assignee_id", UUID.class),
+                        resultSet.getObject("duplicate_of_id", UUID.class)));
+        if (states.isEmpty()) {
+            throw new IllegalArgumentException("Report not found");
+        }
+        return states.getFirst();
+    }
+
+    private static UUID actor(NamedParameterJdbcTemplate database, String username) {
+        List<UUID> actors = database.query(
+                "SELECT id FROM users WHERE username = :username AND enabled",
+                new MapSqlParameterSource("username", username),
+                (resultSet, row) -> resultSet.getObject("id", UUID.class));
+        if (actors.isEmpty()) {
+            throw new IllegalArgumentException("Enabled actor not found");
+        }
+        return actors.getFirst();
+    }
+
+    private String serialize(WorkflowState state) {
+        try {
+            return json.writeValueAsString(state);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException(exception);
         }
     }
 
@@ -294,4 +380,15 @@ public class ReportQueueService {
             Instant updatedAt) {}
 
     public record Choice(UUID id, String name) {}
+
+    public record AuditEvent(
+            long id,
+            String eventType,
+            String actorName,
+            String oldValue,
+            String newValue,
+            Instant createdAt) {}
+
+    record WorkflowState(
+            Status status, Priority priority, UUID assigneeId, UUID duplicateOfId) {}
 }

@@ -1,5 +1,6 @@
 package ru.arzer0.issueisekai.panel.report;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,6 +14,7 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.RowMapper;
@@ -38,10 +40,25 @@ class ReportQueueServiceTest {
                     assertEquals("gameplay", parameters.getValue("category"));
                     return 0L;
                 });
+        UUID actorId = UUID.randomUUID();
+        UUID oldDuplicateId = UUID.randomUUID();
         when(database.query(
                         anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
-                .thenReturn(List.of());
-        var service = new ReportQueueService(databases);
+                .thenAnswer(invocation -> {
+                    String sql = invocation.getArgument(0);
+                    if (sql.contains("SELECT status, priority")) {
+                        return List.of(new ReportQueueService.WorkflowState(
+                                ReportQueueService.Status.DUPLICATE,
+                                ReportQueueService.Priority.NORMAL,
+                                null,
+                                oldDuplicateId));
+                    }
+                    if (sql.contains("SELECT id FROM users")) {
+                        return List.of(actorId);
+                    }
+                    return List.of();
+                });
+        var service = new ReportQueueService(databases, new ObjectMapper());
         UUID serverId = UUID.randomUUID();
         UUID assigneeId = UUID.randomUUID();
 
@@ -69,7 +86,8 @@ class ReportQueueServiceTest {
                         ReportQueueService.Status.DUPLICATE,
                         ReportQueueService.Priority.NORMAL,
                         null,
-                        reportId));
+                        reportId,
+                        "operator"));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> service.update(
@@ -77,19 +95,32 @@ class ReportQueueServiceTest {
                         ReportQueueService.Status.DUPLICATE,
                         ReportQueueService.Priority.NORMAL,
                         null,
-                        UUID.randomUUID()));
+                        UUID.randomUUID(),
+                        "operator"));
 
+        var eventWrites = new AtomicInteger();
         when(database.update(anyString(), any(MapSqlParameterSource.class)))
                 .thenAnswer(invocation -> {
+                    String sql = invocation.getArgument(0);
                     MapSqlParameterSource parameters = invocation.getArgument(1);
-                    assertNull(parameters.getValue("duplicateOfId"));
+                    if (sql.contains("UPDATE reports")) {
+                        assertNull(parameters.getValue("duplicateOfId"));
+                    } else {
+                        eventWrites.incrementAndGet();
+                        assertEquals(actorId, parameters.getValue("actorId"));
+                        assertTrue(parameters.getValue("oldValue").toString().contains("DUPLICATE"));
+                        assertTrue(parameters.getValue("newValue").toString().contains("RESOLVED"));
+                    }
                     return 1;
                 });
+        assertEquals(0, eventWrites.get());
         service.update(
                 reportId,
                 ReportQueueService.Status.RESOLVED,
                 ReportQueueService.Priority.NORMAL,
                 null,
-                UUID.randomUUID());
+                UUID.randomUUID(),
+                "operator");
+        assertEquals(1, eventWrites.get());
     }
 }
