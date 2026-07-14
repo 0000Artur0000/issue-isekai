@@ -27,3 +27,10 @@ management:
     health:
       probes:
         enabled: true
+
+telegram:
+  enabled: ${TELEGRAM_ENABLED:false}
+  bot-token: ${TELEGRAM_BOT_TOKEN:}
+  chat-id: ${TELEGRAM_CHAT_ID:}
+  api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
+  poll-interval-ms: ${TELEGRAM_POLL_INTERVAL_MS:30000}
