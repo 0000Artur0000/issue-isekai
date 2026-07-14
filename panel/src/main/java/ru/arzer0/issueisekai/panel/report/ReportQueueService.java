@@ -18,7 +18,6 @@ import org.springframework.util.StringUtils;
 
 @Service
 public class ReportQueueService {
-    private static final int PAGE_SIZE = 20;
     private static final String FROM = """
             FROM reports r
             JOIN servers s ON s.id = r.server_id
@@ -37,6 +36,9 @@ public class ReportQueueService {
     public Page list(Filter filter) {
         if (filter.page() < 0) {
             throw new IllegalArgumentException("Page must be zero or greater");
+        }
+        if (filter.size() < 1 || filter.size() > 200) {
+            throw new IllegalArgumentException("Size must be between 1 and 200");
         }
         String search = normalize(filter.search(), 100, "Search");
         String category = normalize(filter.category(), 64, "Category");
@@ -69,19 +71,35 @@ public class ReportQueueService {
         NamedParameterJdbcTemplate database = database();
         Long total = database.queryForObject(
                 "SELECT count(*) " + FROM + where, parameters, Long.class);
-        parameters.addValue("limit", PAGE_SIZE);
-        parameters.addValue("offset", (long) filter.page() * PAGE_SIZE);
+        parameters.addValue("limit", filter.size());
+        parameters.addValue("offset", (long) filter.page() * filter.size());
         List<ReportSummary> reports = database.query(
                 """
                         SELECT r.id, s.name AS server_name, r.category, r.player_name,
-                               r.status, r.priority, u.username AS assignee_name, r.created_at
+                               r.status, r.priority, u.username AS assignee_name, r.created_at,
+                               CASE WHEN char_length(r.description) > 160
+                                    THEN left(r.description, 157) || '...'
+                                    ELSE r.description
+                               END AS description_snippet,
+                               COALESCE((
+                                   SELECT jsonb_agg(
+                                       jsonb_build_object('id', participant.id, 'name', participant.username)
+                                       ORDER BY participant.username, participant.id
+                                   )
+                                   FROM report_participants rp
+                                   JOIN users participant ON participant.id = rp.user_id
+                                   WHERE rp.report_id = r.id
+                               ), '[]'::jsonb)::text AS participants,
+                               EXISTS (
+                                   SELECT 1 FROM report_inventories ri WHERE ri.report_id = r.id
+                               ) AS has_inventory
                         """
                         + FROM
                         + where
                         + " ORDER BY r.created_at DESC, r.id DESC LIMIT :limit OFFSET :offset",
                 parameters,
-                ReportQueueService::summary);
-        return new Page(reports, filter.page(), PAGE_SIZE, total == null ? 0 : total);
+                this::summary);
+        return new Page(reports, filter.page(), filter.size(), total == null ? 0 : total);
     }
 
     @Transactional(readOnly = true)
@@ -267,16 +285,27 @@ public class ReportQueueService {
         return normalized;
     }
 
-    private static ReportSummary summary(ResultSet resultSet, int row) throws SQLException {
+    private ReportSummary summary(ResultSet resultSet, int row) throws SQLException {
         return new ReportSummary(
                 resultSet.getObject("id", UUID.class),
                 resultSet.getString("server_name"),
                 resultSet.getString("category"),
                 resultSet.getString("player_name"),
+                resultSet.getString("description_snippet"),
                 Status.valueOf(resultSet.getString("status")),
                 Priority.valueOf(resultSet.getString("priority")),
                 resultSet.getString("assignee_name"),
+                participants(resultSet.getString("participants")),
+                resultSet.getBoolean("has_inventory"),
                 instant(resultSet, "created_at"));
+    }
+
+    private List<Participant> participants(String value) throws SQLException {
+        try {
+            return List.of(json.readValue(value, Participant[].class));
+        } catch (JsonProcessingException exception) {
+            throw new SQLException("Invalid participants JSON", exception);
+        }
     }
 
     private static ReportDetail detail(ResultSet resultSet, int row) throws SQLException {
@@ -330,7 +359,8 @@ public class ReportQueueService {
             Priority priority,
             String category,
             UUID assigneeId,
-            int page) {}
+            int page,
+            int size) {}
 
     public record Page(List<ReportSummary> reports, int number, int size, long total) {
         public long totalPages() {
@@ -351,10 +381,15 @@ public class ReportQueueService {
             String serverName,
             String category,
             String playerName,
+            String descriptionSnippet,
             Status status,
             Priority priority,
             String assigneeName,
+            List<Participant> participants,
+            boolean hasInventory,
             Instant createdAt) {}
+
+    public record Participant(UUID id, String name) {}
 
     public record ReportDetail(
             UUID id,

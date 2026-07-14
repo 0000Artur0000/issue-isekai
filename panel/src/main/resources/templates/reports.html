@@ -42,6 +42,7 @@
                 <option th:each="assignee : ${assignees}" th:value="${assignee.id}" th:text="${assignee.name}" th:selected="${assignee.id == filter.assigneeId}"></option>
             </select>
         </label>
+        <label>Per page <input type="number" name="size" min="1" max="200" th:value="${filter.size}"></label>
         <button type="submit">Filter</button>
     </form>
     <p th:text="|${page.total} reports|">0 reports</p>
@@ -65,9 +66,9 @@
         </table>
     </div>
     <nav class="pagination">
-        <a th:if="${page.hasPrevious()}" th:href="@{/reports(page=${page.number - 1},search=${filter.search},serverId=${filter.serverId},status=${filter.status},priority=${filter.priority},category=${filter.category},assigneeId=${filter.assigneeId})}">Previous</a>
+        <a th:if="${page.hasPrevious()}" th:href="@{/reports(page=${page.number - 1},size=${filter.size},search=${filter.search},serverId=${filter.serverId},status=${filter.status},priority=${filter.priority},category=${filter.category},assigneeId=${filter.assigneeId})}">Previous</a>
         <span th:text="|Page ${page.number + 1} of ${page.totalPages()}|"></span>
-        <a th:if="${page.hasNext()}" th:href="@{/reports(page=${page.number + 1},search=${filter.search},serverId=${filter.serverId},status=${filter.status},priority=${filter.priority},category=${filter.category},assigneeId=${filter.assigneeId})}">Next</a>
+        <a th:if="${page.hasNext()}" th:href="@{/reports(page=${page.number + 1},size=${filter.size},search=${filter.search},serverId=${filter.serverId},status=${filter.status},priority=${filter.priority},category=${filter.category},assigneeId=${filter.assigneeId})}">Next</a>
     </nav>
 </main>
 </body>

@@ -30,10 +30,11 @@ public class ReportWebController {
             @RequestParam(defaultValue = "") String category,
             @RequestParam(required = false) UUID assigneeId,
             @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request,
             Model model) {
         var filter = new ReportQueueService.Filter(
-                search, serverId, status, priority, category, assigneeId, page);
+                search, serverId, status, priority, category, assigneeId, page, size);
         model.addAttribute("filter", filter);
         model.addAttribute("page", reports.list(filter));
         model.addAttribute("servers", reports.servers());

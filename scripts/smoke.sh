@@ -9,7 +9,7 @@ cookies="$temporary/cookies"
 trap 'rm -rf "$temporary"' EXIT
 
 login_page="$(curl -fsS -c "$cookies" "$panel_url/login")"
-csrf="$(printf '%s' "$login_page" | sed -n 's/.*name="_csrf"[^>]*value="\([^"]*\)".*/\1/p')"
+csrf="$(printf '%s' "$login_page" | sed -n 's/.*name="_csrf"[^>]*value="\([^"]*\)".*/\1/p' | head -n 1)"
 curl -fsS -o /dev/null -b "$cookies" -c "$cookies" \
   --data-urlencode "username=$admin_username" \
   --data-urlencode "password=$admin_password" \
@@ -17,7 +17,7 @@ curl -fsS -o /dev/null -b "$cookies" -c "$cookies" \
   "$panel_url/login"
 
 servers_page="$(curl -fsS -b "$cookies" "$panel_url/servers")"
-csrf="$(printf '%s' "$servers_page" | sed -n 's/.*name="_csrf"[^>]*value="\([^"]*\)".*/\1/p')"
+csrf="$(printf '%s' "$servers_page" | sed -n 's/.*name="_csrf"[^>]*value="\([^"]*\)".*/\1/p' | head -n 1)"
 created_server="$(curl -fsS -L -b "$cookies" -c "$cookies" \
   --data-urlencode "name=smoke-$(date +%s)" \
   --data-urlencode "_csrf=$csrf" \
@@ -35,5 +35,7 @@ second_code="$(curl -sS -o "$temporary/second.json" -w '%{http_code}' \
 
 test "$first_code" = "201"
 test "$second_code" = "200"
-test "$(sed -n 's/.*"report_id":"\([^"]*\)".*/\1/p' "$temporary/first.json")" = \
-  "$(sed -n 's/.*"report_id":"\([^"]*\)".*/\1/p' "$temporary/second.json")"
+first_id="$(sed -n 's/.*"report_id":"\([^"]*\)".*/\1/p' "$temporary/first.json")"
+second_id="$(sed -n 's/.*"report_id":"\([^"]*\)".*/\1/p' "$temporary/second.json")"
+test "$first_id" = "$second_id"
+curl -fsS -b "$cookies" "$panel_url/reports?size=1" | grep -q "$first_id"

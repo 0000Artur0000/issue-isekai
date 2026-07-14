@@ -1,6 +1,7 @@
 package ru.arzer0.issueisekai.panel.report;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -50,9 +51,12 @@ class ReportWebControllerTest {
                         "Lobby",
                         "gameplay",
                         "Steve",
+                        "Player cannot open the chest.",
                         ReportQueueService.Status.NEW,
                         ReportQueueService.Priority.NORMAL,
                         null,
+                        List.of(),
+                        false,
                         now)),
                 0,
                 20,
@@ -118,5 +122,15 @@ class ReportWebControllerTest {
                 assigneeId,
                 duplicateId,
                 "operator");
+    }
+
+    @Test
+    void rejectsInvalidPageSize() throws Exception {
+        when(reports.list(argThat(filter -> filter.size() == 0)))
+                .thenThrow(new IllegalArgumentException("Size must be between 1 and 200"));
+
+        mvc.perform(get("/reports").param("size", "0").with(user("operator").roles("OPERATOR")))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("Size must be between 1 and 200"));
     }
 }
