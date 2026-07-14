@@ -55,7 +55,10 @@ class ServerServiceTest {
         service.disable(created.serverId());
         assertFalse(server.isEnabled());
         assertFalse(service.findEnabledByApiKey(rotated).isPresent());
+        assertThrows(IllegalArgumentException.class, () -> service.rotateKey(created.serverId()));
         assertTrue(service.findEnabledByApiKey(" ").isEmpty());
         assertThrows(IllegalArgumentException.class, () -> service.create(" "));
+        when(repository.existsByName("Test Server")).thenReturn(true);
+        assertThrows(IllegalArgumentException.class, () -> service.create("Test Server"));
     }
 }

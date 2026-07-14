@@ -80,6 +80,13 @@ public class UserAccount {
         return updatedAt;
     }
 
+    void update(String passwordHash, Role role, boolean enabled, Instant updatedAt) {
+        this.passwordHash = passwordHash;
+        this.role = role;
+        this.enabled = enabled;
+        this.updatedAt = updatedAt;
+    }
+
     public enum Role {
         ADMIN,
         OPERATOR

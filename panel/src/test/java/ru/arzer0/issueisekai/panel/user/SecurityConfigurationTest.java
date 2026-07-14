@@ -55,9 +55,9 @@ class SecurityConfigurationTest {
         mvc.perform(get("/reports"))
                 .andExpect(status().isFound())
                 .andExpect(redirectedUrl("http://localhost/login"));
-        mvc.perform(get("/admin/users").with(user("operator").roles("OPERATOR")))
+        mvc.perform(get("/users").with(user("operator").roles("OPERATOR")))
                 .andExpect(status().isForbidden());
-        mvc.perform(post("/reports").with(user("admin").roles("ADMIN")))
+        mvc.perform(post("/users").with(user("admin").roles("ADMIN")))
                 .andExpect(status().isForbidden());
 
         MockHttpSession session = new MockHttpSession();

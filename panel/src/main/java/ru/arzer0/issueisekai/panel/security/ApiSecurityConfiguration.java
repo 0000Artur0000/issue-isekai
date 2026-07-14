@@ -25,7 +25,7 @@ public class ApiSecurityConfiguration {
                         .permitAll()
                         .requestMatchers("/error")
                         .permitAll()
-                        .requestMatchers("/admin/**")
+                        .requestMatchers("/users/**", "/servers/**", "/admin/**")
                         .hasRole("ADMIN")
                         .anyRequest()
                         .authenticated())

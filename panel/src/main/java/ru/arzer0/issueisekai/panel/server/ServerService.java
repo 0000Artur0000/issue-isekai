@@ -6,9 +6,11 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -22,9 +24,17 @@ public class ServerService {
         this.repositories = repositories;
     }
 
+    @Transactional(readOnly = true)
+    public List<ServerInstance> list() {
+        return repository().findAll(Sort.by("name"));
+    }
+
     @Transactional
     public Credentials create(String name) {
         String normalizedName = validateName(name);
+        if (repository().existsByName(normalizedName)) {
+            throw new IllegalArgumentException("Server name already exists");
+        }
         Key key = generateKey();
         ServerInstance server = repository().saveAndFlush(
                 new ServerInstance(UUID.randomUUID(), normalizedName, key.hash(), Instant.now()));
@@ -34,6 +44,9 @@ public class ServerService {
     @Transactional
     public String rotateKey(UUID serverId) {
         ServerInstance server = required(serverId);
+        if (!server.isEnabled()) {
+            throw new IllegalArgumentException("Disabled server key cannot be rotated");
+        }
         Key key = generateKey();
         server.rotateKey(key.hash());
         repository().saveAndFlush(server);

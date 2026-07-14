@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IssueIsekai · Reports</title>
+    <link rel="stylesheet" th:href="@{/app.css}">
+</head>
+<body>
+<main>
+    <nav>
+        <a th:href="@{/reports}">Reports</a>
+        <a th:if="${admin}" th:href="@{/users}">Users</a>
+        <a th:if="${admin}" th:href="@{/servers}">Servers</a>
+        <form class="inline" th:action="@{/logout}" method="post"><button type="submit">Logout</button></form>
+    </nav>
+    <h1>Bug reports</h1>
+    <form class="filters" th:action="@{/reports}" method="get">
+        <label>Search <input name="search" maxlength="100" th:value="${filter.search}"></label>
+        <label>Server
+            <select name="serverId">
+                <option value="">All</option>
+                <option th:each="server : ${servers}" th:value="${server.id}" th:text="${server.name}" th:selected="${server.id == filter.serverId}"></option>
+            </select>
+        </label>
+        <label>Status
+            <select name="status">
+                <option value="">All</option>
+                <option th:each="item : ${statuses}" th:value="${item}" th:text="${item}" th:selected="${item == filter.status}"></option>
+            </select>
+        </label>
+        <label>Priority
+            <select name="priority">
+                <option value="">All</option>
+                <option th:each="item : ${priorities}" th:value="${item}" th:text="${item}" th:selected="${item == filter.priority}"></option>
+            </select>
+        </label>
+        <label>Category <input name="category" maxlength="64" th:value="${filter.category}"></label>
+        <label>Assignee
+            <select name="assigneeId">
+                <option value="">All</option>
+                <option th:each="assignee : ${assignees}" th:value="${assignee.id}" th:text="${assignee.name}" th:selected="${assignee.id == filter.assigneeId}"></option>
+            </select>
+        </label>
+        <button type="submit">Filter</button>
+    </form>
+    <p th:text="|${page.total} reports|">0 reports</p>
+    <div class="table-wrap">
+        <table>
+            <thead>
+            <tr><th>ID</th><th>Server</th><th>Category</th><th>Player</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Created</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="report : ${page.reports}">
+                <td><a th:href="@{/reports/{id}(id=${report.id})}" th:text="${report.id}"></a></td>
+                <td th:text="${report.serverName}"></td>
+                <td th:text="${report.category}"></td>
+                <td th:text="${report.playerName}"></td>
+                <td th:text="${report.status}"></td>
+                <td th:text="${report.priority}"></td>
+                <td th:text="${report.assigneeName ?: '—'}"></td>
+                <td th:text="${report.createdAt}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <nav class="pagination">
+        <a th:if="${page.hasPrevious()}" th:href="@{/reports(page=${page.number - 1},search=${filter.search},serverId=${filter.serverId},status=${filter.status},priority=${filter.priority},category=${filter.category},assigneeId=${filter.assigneeId})}">Previous</a>
+        <span th:text="|Page ${page.number + 1} of ${page.totalPages()}|"></span>
+        <a th:if="${page.hasNext()}" th:href="@{/reports(page=${page.number + 1},search=${filter.search},serverId=${filter.serverId},status=${filter.status},priority=${filter.priority},category=${filter.category},assigneeId=${filter.assigneeId})}">Next</a>
+    </nav>
+</main>
+</body>
+</html>
