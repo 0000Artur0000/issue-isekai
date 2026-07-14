@@ -15,6 +15,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+@SuppressWarnings("unchecked")
 class BootstrapAdminTest {
     @Test
     void createsAdminOnceWithoutChangingPasswordOnRestart() {
