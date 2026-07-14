@@ -33,8 +33,11 @@ public final class IssueIsekaiPlugin extends JavaPlugin {
             getLogger().log(Level.SEVERE, "Could not initialize submission queue", error);
             return null;
         });
-        Objects.requireNonNull(getCommand("bugreport"))
-                .setExecutor(new BugReportCommand(this, bugReportDialog, validator, submissionQueue, reportEvents));
+        var bugReportCommand = new BugReportCommand(this, bugReportDialog, validator, submissionQueue, reportEvents);
+        Objects.requireNonNull(getCommand("bugreport")).setExecutor(bugReportCommand);
+        if (reportEvents instanceof DenizenBridge bridge) {
+            bridge.registerCommand(bugReportCommand);
+        }
         var reportClient =
                 new ReportClient(pluginConfig.panelUrl(), pluginConfig.apiKey(), pluginConfig.requestTimeout());
         deliveryWorker = new DeliveryWorker(

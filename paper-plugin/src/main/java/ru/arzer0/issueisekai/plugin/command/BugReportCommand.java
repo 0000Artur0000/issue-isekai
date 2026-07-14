@@ -42,38 +42,44 @@ public final class BugReportCommand implements CommandExecutor {
             sender.sendMessage(Component.text("Only players can use this command."));
             return true;
         }
-        dialog.open(player, (target, response) -> {
-            BugReportValidator.Result result = validator.validate(response.category(), response.description());
-            if (!result.accepted()) {
-                target.sendMessage(Component.text(result.error()));
-                return;
-            }
-            CreateReportRequest submission = submission(target, result);
-            BugReportEvents.PreSubmitResult eventResult = events.beforeSubmit(target, submission);
-            if (eventResult.cancelled()) {
-                target.sendMessage(Component.text("Bug report cancelled."));
-                return;
-            }
-            result = validator.validate(target.getUniqueId(), eventResult.category(), eventResult.description());
-            if (!result.accepted()) {
-                target.sendMessage(Component.text(result.error()));
-                return;
-            }
-            submission = withContent(submission, result);
-            CreateReportRequest queuedSubmission = submission;
-            queue.enqueue(queuedSubmission).whenComplete((path, error) -> Bukkit.getScheduler()
-                    .runTask(
-                            plugin,
-                            () -> {
-                                if (error == null) {
-                                    events.queued(target, queuedSubmission);
-                                    target.sendMessage(Component.text("Bug report queued."));
-                                } else {
-                                    target.sendMessage(Component.text("Could not queue bug report. Please try again later."));
-                                }
-                            }));
-        });
+        open(player);
         return true;
+    }
+
+    public void open(Player player) {
+        dialog.open(player, (target, response) -> submit(target, response.category(), response.description()));
+    }
+
+    public void submit(Player target, String category, String description) {
+        BugReportValidator.Result result = validator.validate(category, description);
+        if (!result.accepted()) {
+            target.sendMessage(Component.text(result.error()));
+            return;
+        }
+        CreateReportRequest submission = submission(target, result);
+        BugReportEvents.PreSubmitResult eventResult = events.beforeSubmit(target, submission);
+        if (eventResult.cancelled()) {
+            target.sendMessage(Component.text("Bug report cancelled."));
+            return;
+        }
+        result = validator.validate(target.getUniqueId(), eventResult.category(), eventResult.description());
+        if (!result.accepted()) {
+            target.sendMessage(Component.text(result.error()));
+            return;
+        }
+        submission = withContent(submission, result);
+        CreateReportRequest queuedSubmission = submission;
+        queue.enqueue(queuedSubmission).whenComplete((path, error) -> Bukkit.getScheduler()
+                .runTask(
+                        plugin,
+                        () -> {
+                            if (error == null) {
+                                events.queued(target, queuedSubmission);
+                                target.sendMessage(Component.text("Bug report queued."));
+                            } else {
+                                target.sendMessage(Component.text("Could not queue bug report. Please try again later."));
+                            }
+                        }));
     }
 
     private static CreateReportRequest submission(Player player, BugReportValidator.Result result) {

@@ -4,14 +4,22 @@ import com.denizenscript.denizen.Denizen;
 import com.denizenscript.denizen.events.BukkitScriptEvent;
 import com.denizenscript.denizen.objects.LocationTag;
 import com.denizenscript.denizen.objects.PlayerTag;
+import com.denizenscript.denizen.utilities.Utilities;
 import com.denizenscript.denizen.utilities.implementation.BukkitScriptEntryData;
+import com.denizenscript.denizencore.DenizenCore;
 import com.denizenscript.denizencore.events.ScriptEvent;
+import com.denizenscript.denizencore.exceptions.InvalidArgumentsException;
+import com.denizenscript.denizencore.objects.Argument;
 import com.denizenscript.denizencore.objects.ObjectTag;
 import com.denizenscript.denizencore.objects.core.ElementTag;
+import com.denizenscript.denizencore.scripts.ScriptEntry;
 import com.denizenscript.denizencore.scripts.ScriptEntryData;
+import com.denizenscript.denizencore.scripts.commands.AbstractCommand;
+import com.denizenscript.denizencore.utilities.debugging.Debug;
 import java.util.UUID;
 import org.bukkit.entity.Player;
 import ru.arzer0.issueisekai.plugin.api.CreateReportRequest;
+import ru.arzer0.issueisekai.plugin.command.BugReportCommand;
 import ru.arzer0.issueisekai.plugin.events.BugReportEvents;
 
 public final class DenizenBridge implements BugReportEvents {
@@ -33,6 +41,10 @@ public final class DenizenBridge implements BugReportEvents {
         return instance;
     }
 
+    public void registerCommand(BugReportCommand command) {
+        DenizenCore.commandRegistry.register("bugreport", new BugReportScriptCommand(command));
+    }
+
     @Override
     public PreSubmitResult beforeSubmit(Player player, CreateReportRequest submission) {
         return event.fireSubmit(player, submission);
@@ -46,6 +58,64 @@ public final class DenizenBridge implements BugReportEvents {
     @Override
     public void delivered(CreateReportRequest submission, UUID reportId) {
         event.fireDelivered(submission, reportId);
+    }
+
+    private static final class BugReportScriptCommand extends AbstractCommand {
+        private final BugReportCommand command;
+
+        private BugReportScriptCommand(BugReportCommand command) {
+            this.command = command;
+            setName("bugreport");
+            setSyntax("bugreport [open/submit] (category:<id>) (description:<text>) (player:<player>)");
+            setRequiredArguments(1, 4);
+        }
+
+        @Override
+        public void parseArgs(ScriptEntry scriptEntry) throws InvalidArgumentsException {
+            for (Argument argument : scriptEntry) {
+                if (!scriptEntry.hasObject("action") && argument.matches("open", "submit")) {
+                    scriptEntry.addObject("action", argument.asElement());
+                } else if (!scriptEntry.hasObject("category") && argument.matchesPrefix("category")) {
+                    scriptEntry.addObject("category", argument.asElement());
+                } else if (!scriptEntry.hasObject("description") && argument.matchesPrefix("description")) {
+                    scriptEntry.addObject("description", argument.asElement());
+                } else if (!scriptEntry.hasObject("player") && argument.matchesPrefix("player")) {
+                    scriptEntry.addObject("player", argument.asType(PlayerTag.class));
+                } else {
+                    argument.reportUnhandled();
+                }
+            }
+            if (!scriptEntry.hasObject("action")) {
+                throw new InvalidArgumentsException("Action must be open or submit.");
+            }
+            if (!scriptEntry.hasObject("player") && Utilities.entryHasPlayer(scriptEntry)) {
+                scriptEntry.addObject("player", Utilities.getEntryPlayer(scriptEntry));
+            }
+            if (!scriptEntry.hasObject("player")) {
+                throw new InvalidArgumentsException("An online player is required.");
+            }
+            if (scriptEntry.getElement("action").asString().equalsIgnoreCase("submit")
+                    && (!scriptEntry.hasObject("category") || !scriptEntry.hasObject("description"))) {
+                throw new InvalidArgumentsException("Submit requires category and description.");
+            }
+        }
+
+        @Override
+        public void execute(ScriptEntry scriptEntry) {
+            PlayerTag player = scriptEntry.getObjectTag("player");
+            if (player == null || !player.isOnline()) {
+                Debug.echoError(scriptEntry, "Player must be online.");
+                return;
+            }
+            if (scriptEntry.getElement("action").asString().equalsIgnoreCase("open")) {
+                command.open(player.getPlayerEntity());
+            } else {
+                command.submit(
+                        player.getPlayerEntity(),
+                        scriptEntry.getElement("category").asString(),
+                        scriptEntry.getElement("description").asString());
+            }
+        }
     }
 
     private static final class BugReportScriptEvent extends BukkitScriptEvent {
