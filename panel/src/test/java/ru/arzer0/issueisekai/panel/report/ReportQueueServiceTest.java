@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -190,5 +191,62 @@ class ReportQueueServiceTest {
                 new ReportQueueService.Participant(participantId, "operator"),
                 summary.participants().getFirst());
         assertTrue(summary.hasInventory());
+    }
+
+    @Test
+    void joinsAndLeavesIdempotentlyWithAudit() {
+        NamedParameterJdbcTemplate database = mock(NamedParameterJdbcTemplate.class);
+        ObjectProvider<NamedParameterJdbcTemplate> databases = mock(ObjectProvider.class);
+        when(databases.getObject()).thenReturn(database);
+        UUID reportId = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+        var participant = new ReportQueueService.Participant(actorId, "operator");
+        when(database.query(
+                        anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenAnswer(invocation -> {
+                    String sql = invocation.getArgument(0);
+                    if (sql.contains("SELECT id FROM users")) {
+                        return List.of(actorId);
+                    }
+                    if (sql.contains("SELECT u.id, u.username")) {
+                        return List.of(participant);
+                    }
+                    return List.of();
+                });
+        when(database.queryForObject(
+                        anyString(), any(MapSqlParameterSource.class), eq(Boolean.class)))
+                .thenReturn(true, true, false);
+        var joinWrites = new AtomicInteger();
+        var leaveWrites = new AtomicInteger();
+        var events = new ArrayList<String>();
+        when(database.update(anyString(), any(MapSqlParameterSource.class)))
+                .thenAnswer(invocation -> {
+                    String sql = invocation.getArgument(0);
+                    MapSqlParameterSource parameters = invocation.getArgument(1);
+                    if (sql.contains("INSERT INTO report_participants")) {
+                        return joinWrites.getAndIncrement() == 0 ? 1 : 0;
+                    }
+                    if (sql.contains("DELETE FROM report_participants")) {
+                        return leaveWrites.getAndIncrement() == 0 ? 1 : 0;
+                    }
+                    if (sql.contains("INSERT INTO report_events")) {
+                        assertEquals(reportId, parameters.getValue("reportId"));
+                        assertEquals(actorId, parameters.getValue("actorId"));
+                        events.add(parameters.getValue("eventType").toString());
+                    }
+                    return 1;
+                });
+        var service = new ReportQueueService(databases, new ObjectMapper());
+
+        assertEquals(List.of(participant), service.participants(reportId));
+        assertTrue(service.join(reportId, "operator"));
+        assertFalse(service.join(reportId, "operator"));
+        assertTrue(service.leave(reportId, "operator"));
+        assertFalse(service.leave(reportId, "operator"));
+        assertEquals(List.of("JOINED", "LEFT"), events);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.join(UUID.randomUUID(), "operator"));
+        assertEquals(List.of("JOINED", "LEFT"), events);
     }
 }

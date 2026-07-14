@@ -157,6 +157,70 @@ public class ReportQueueService {
                         instant(resultSet, "created_at")));
     }
 
+    @Transactional(readOnly = true)
+    public List<Participant> participants(UUID reportId) {
+        return database().query(
+                """
+                        SELECT u.id, u.username AS name
+                        FROM report_participants rp
+                        JOIN users u ON u.id = rp.user_id
+                        WHERE rp.report_id = :reportId
+                        ORDER BY rp.created_at, u.username, u.id
+                        """,
+                new MapSqlParameterSource("reportId", reportId),
+                (resultSet, row) -> new Participant(
+                        resultSet.getObject("id", UUID.class), resultSet.getString("name")));
+    }
+
+    @Transactional
+    public boolean join(UUID reportId, String username) {
+        NamedParameterJdbcTemplate database = database();
+        UUID actorId = actor(database, username);
+        OffsetDateTime changedAt = OffsetDateTime.ofInstant(Instant.now(), ZoneOffset.UTC);
+        MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("reportId", reportId)
+                .addValue("actorId", actorId)
+                .addValue("changedAt", changedAt);
+        int inserted = database.update(
+                """
+                        INSERT INTO report_participants (report_id, user_id, created_at)
+                        SELECT :reportId, :actorId, :changedAt
+                        FROM reports
+                        WHERE id = :reportId
+                        ON CONFLICT (report_id, user_id) DO NOTHING
+                        """,
+                parameters);
+        if (inserted == 0) {
+            requireReport(database, reportId);
+            return false;
+        }
+        participantEvent(database, parameters, "JOINED");
+        return true;
+    }
+
+    @Transactional
+    public boolean leave(UUID reportId, String username) {
+        NamedParameterJdbcTemplate database = database();
+        UUID actorId = actor(database, username);
+        OffsetDateTime changedAt = OffsetDateTime.ofInstant(Instant.now(), ZoneOffset.UTC);
+        MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("reportId", reportId)
+                .addValue("actorId", actorId)
+                .addValue("changedAt", changedAt);
+        int deleted = database.update(
+                """
+                        DELETE FROM report_participants
+                        WHERE report_id = :reportId AND user_id = :actorId
+                        """,
+                parameters);
+        if (deleted == 0) {
+            requireReport(database, reportId);
+            return false;
+        }
+        participantEvent(database, parameters, "LEFT");
+        return true;
+    }
+
     @Transactional
     public void update(
             UUID id,
@@ -254,6 +318,27 @@ public class ReportQueueService {
             throw new IllegalArgumentException("Enabled actor not found");
         }
         return actors.getFirst();
+    }
+
+    private static void requireReport(NamedParameterJdbcTemplate database, UUID reportId) {
+        if (!exists(database, "reports", reportId, false)) {
+            throw new IllegalArgumentException("Report not found");
+        }
+    }
+
+    private static void participantEvent(
+            NamedParameterJdbcTemplate database,
+            MapSqlParameterSource parameters,
+            String eventType) {
+        database.update(
+                """
+                        INSERT INTO report_events (
+                            report_id, actor_id, event_type, created_at
+                        ) VALUES (
+                            :reportId, :actorId, :eventType, :changedAt
+                        )
+                        """,
+                parameters.addValue("eventType", eventType));
     }
 
     private String serialize(WorkflowState state) {
