@@ -6,7 +6,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.env.Environment;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,12 +14,15 @@ import org.springframework.util.StringUtils;
 @Component
 public class BootstrapAdmin implements ApplicationRunner {
     private final ObjectProvider<UserAccountRepository> repositories;
-    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
     private final Environment environment;
 
     public BootstrapAdmin(
-            ObjectProvider<UserAccountRepository> repositories, Environment environment) {
+            ObjectProvider<UserAccountRepository> repositories,
+            PasswordEncoder passwordEncoder,
+            Environment environment) {
         this.repositories = repositories;
+        this.passwordEncoder = passwordEncoder;
         this.environment = environment;
     }
 

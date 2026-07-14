@@ -13,17 +13,15 @@ import org.springframework.http.ResponseEntity;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
-            "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration",
-            "spring.security.user.name=test",
-            "spring.security.user.password=test"
+            "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
         })
 class IssueIsekaiApplicationTest {
     @Autowired private TestRestTemplate rest;
 
     @Test
     void readinessIsUp() {
-        ResponseEntity<JsonNode> response = rest.withBasicAuth("test", "test")
-                .getForEntity("/actuator/health/readiness", JsonNode.class);
+        ResponseEntity<JsonNode> response =
+                rest.getForEntity("/actuator/health/readiness", JsonNode.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("UP", response.getBody().get("status").asText());

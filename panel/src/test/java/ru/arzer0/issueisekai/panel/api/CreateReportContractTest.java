@@ -4,12 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class CreateReportContractTest {
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
     void deserializesSharedFixture() throws IOException {
@@ -31,8 +32,8 @@ class CreateReportContractTest {
                         10,
                         64,
                         -20,
-                        "SURVIVAL",
-                        "2026-07-13T10:00:00Z",
+                        CreateReportRequest.GameMode.SURVIVAL,
+                        Instant.parse("2026-07-13T10:00:00Z"),
                         "26.1.2"),
                 request);
 

@@ -6,6 +6,8 @@ spring:
     username: ${DATABASE_USERNAME:issue_isekai}
     password: ${DATABASE_PASSWORD:issue_isekai}
   jackson:
+    deserialization:
+      fail-on-unknown-properties: true
     time-zone: UTC
   jpa:
     hibernate:

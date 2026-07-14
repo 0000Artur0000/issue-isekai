@@ -96,6 +96,7 @@ org.springframework.data:spring-data-jpa:3.5.13=compileClasspath,productionRunti
 org.springframework.security:spring-security-config:6.5.11=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.springframework.security:spring-security-core:6.5.11=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.springframework.security:spring-security-crypto:6.5.11=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.springframework.security:spring-security-test:6.5.11=testCompileClasspath,testRuntimeClasspath
 org.springframework.security:spring-security-web:6.5.11=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.springframework:spring-aop:6.2.19=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.springframework:spring-aspects:6.2.19=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath

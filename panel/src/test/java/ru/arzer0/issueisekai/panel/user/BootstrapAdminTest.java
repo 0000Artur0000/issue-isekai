@@ -27,7 +27,7 @@ class BootstrapAdminTest {
         var environment = new MockEnvironment()
                 .withProperty("BOOTSTRAP_ADMIN_USERNAME", " admin ")
                 .withProperty("BOOTSTRAP_ADMIN_PASSWORD", "secret-password");
-        var bootstrap = new BootstrapAdmin(repositories, environment);
+        var bootstrap = new BootstrapAdmin(repositories, encoder, environment);
         ApplicationArguments arguments = mock(ApplicationArguments.class);
 
         bootstrap.run(arguments);
@@ -47,7 +47,8 @@ class BootstrapAdminTest {
         ObjectProvider<UserAccountRepository> repositories = mock(ObjectProvider.class);
         when(repositories.getIfAvailable()).thenReturn(repository);
         when(repository.count()).thenReturn(0L);
-        var bootstrap = new BootstrapAdmin(repositories, new MockEnvironment());
+        var bootstrap = new BootstrapAdmin(
+                repositories, new BCryptPasswordEncoder(), new MockEnvironment());
 
         assertThrows(IllegalStateException.class, () -> bootstrap.run(mock(ApplicationArguments.class)));
     }
