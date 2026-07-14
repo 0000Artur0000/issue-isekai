@@ -45,4 +45,20 @@ class CreateReportContractTest {
                         "{\"report_id\":\"33333333-3333-3333-3333-333333333333\"}"),
                 JsonParser.parseString(ReportJson.write(response)));
     }
+
+    @Test
+    void serializesOptionalInventoryFixture() throws IOException {
+        String fixture;
+        try (var input = Objects.requireNonNull(
+                getClass().getResourceAsStream("/create-report-request-with-inventory.json"))) {
+            fixture = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+
+        CreateReportRequest request = ReportJson.read(fixture, CreateReportRequest.class);
+        assertEquals(1, request.inventory().schemaVersion());
+        assertEquals("hotbar_2", request.inventory().slots().getFirst().slot());
+        assertEquals(
+                JsonParser.parseString(fixture),
+                JsonParser.parseString(ReportJson.write(request)));
+    }
 }

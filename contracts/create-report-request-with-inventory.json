@@ -1,0 +1,64 @@
+{
+  "submission_id": "11111111-1111-1111-1111-111111111111",
+  "category": "gameplay",
+  "description": "Player cannot open the chest.",
+  "player_uuid": "22222222-2222-2222-2222-222222222222",
+  "player_name": "Steve",
+  "world_key": "minecraft:overworld",
+  "x": 10,
+  "y": 64,
+  "z": -20,
+  "game_mode": "SURVIVAL",
+  "reported_at": "2026-07-13T10:00:00Z",
+  "paper_version": "26.1.2",
+  "inventory": {
+    "schema_version": 1,
+    "minecraft_version": "26.1.2",
+    "selected_hotbar_slot": 2,
+    "resource_pack": {
+      "id": "44444444-4444-4444-4444-444444444444",
+      "sha1": "0123456789abcdef0123456789abcdef01234567",
+      "status": "SUCCESSFULLY_LOADED"
+    },
+    "slots": [
+      {
+        "slot": "hotbar_2",
+        "material": "minecraft:diamond_pickaxe",
+        "amount": 1,
+        "name": {
+          "plain": "Ruby Pickaxe",
+          "component": {
+            "text": "Ruby Pickaxe",
+            "color": "red",
+            "italic": false
+          }
+        },
+        "lore": [
+          {
+            "plain": "Miner's tool",
+            "component": {
+              "text": "Miner's tool",
+              "color": "gray"
+            }
+          }
+        ],
+        "damage": 121,
+        "max_damage": 1561,
+        "item_model": "example:ruby_pickaxe",
+        "custom_model_data": {
+          "floats": [1.5],
+          "flags": [true],
+          "strings": ["ruby"],
+          "colors": [16711680]
+        },
+        "enchantments": [
+          {
+            "key": "minecraft:efficiency",
+            "level": 5
+          }
+        ]
+      }
+    ],
+    "items_nbt_base64": "AQID"
+  }
+}

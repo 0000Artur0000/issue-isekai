@@ -1,9 +1,14 @@
 package ru.arzer0.issueisekai.panel.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.Validation;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -43,5 +48,28 @@ class CreateReportContractTest {
         assertEquals(
                 "33333333-3333-3333-3333-333333333333",
                 objectMapper.readTree(objectMapper.writeValueAsString(response)).get("report_id").asText());
+    }
+
+    @Test
+    void deserializesAndValidatesOptionalInventoryFixture() throws IOException {
+        String fixture;
+        try (var input = Objects.requireNonNull(
+                getClass().getResourceAsStream("/create-report-request-with-inventory.json"))) {
+            fixture = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+
+        CreateReportRequest request = objectMapper.readValue(fixture, CreateReportRequest.class);
+        assertNotNull(request.inventory());
+        assertEquals(1, request.inventory().schemaVersion());
+        assertEquals("hotbar_2", request.inventory().slots().getFirst().slot());
+        assertEquals("example:ruby_pickaxe", request.inventory().slots().getFirst().itemModel());
+
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            assertTrue(factory.getValidator().validate(request).isEmpty());
+            CreateReportRequest unsupported = objectMapper.readValue(
+                    fixture.replace("\"schema_version\": 1", "\"schema_version\": 2"),
+                    CreateReportRequest.class);
+            assertFalse(factory.getValidator().validate(unsupported).isEmpty());
+        }
     }
 }
