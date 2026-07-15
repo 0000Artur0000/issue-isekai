@@ -17,6 +17,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.HexFormat;
@@ -43,6 +44,8 @@ public class ResourcePackService {
     private static final int MAX_ENTRIES = 50_000;
     private static final int MAX_RATIO = 200;
     private static final int MINECRAFT_26_1_PACK_FORMAT = 75;
+    private static final byte[] PNG_SIGNATURE =
+            new byte[] {(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
     private final ObjectProvider<NamedParameterJdbcTemplate> databases;
     private final ObjectMapper json;
     private final Path directory;
@@ -241,6 +244,110 @@ public class ResourcePackService {
                     createdAt.toInstant());
         } finally {
             delete(temporary);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public Asset asset(UUID revisionId, String path) {
+        validateAssetPath(path);
+        PackFile pack = packFile(revisionId);
+        byte[] content = readAsset(pack, path);
+        if (content == null && pack.kind().equals("SERVER")) {
+            List<PackFile> vanilla = database().query(
+                    """
+                            SELECT kind, minecraft_version,
+                                   encode(content_sha256, 'hex') AS sha256
+                            FROM resource_packs
+                            WHERE kind = 'VANILLA_BASE' AND minecraft_version = :version
+                            """,
+                    new MapSqlParameterSource("version", pack.minecraftVersion()),
+                    (resultSet, row) -> new PackFile(
+                            resultSet.getString("kind"),
+                            resultSet.getString("minecraft_version"),
+                            resultSet.getString("sha256")));
+            if (!vanilla.isEmpty()) {
+                content = readAsset(vanilla.getFirst(), path);
+            }
+        }
+        if (content == null) {
+            throw new AssetNotFoundException();
+        }
+        validateAssetContent(path, content);
+        String contentType = path.endsWith(".png") ? "image/png" : "application/json";
+        return new Asset(
+                content,
+                contentType,
+                HexFormat.of().formatHex(digest("SHA-256").digest(content)));
+    }
+
+    private PackFile packFile(UUID revisionId) {
+        List<PackFile> packs = database().query(
+                """
+                        SELECT kind, minecraft_version,
+                               encode(content_sha256, 'hex') AS sha256
+                        FROM resource_packs
+                        WHERE id = :id
+                        """,
+                new MapSqlParameterSource("id", revisionId),
+                (resultSet, row) -> new PackFile(
+                        resultSet.getString("kind"),
+                        resultSet.getString("minecraft_version"),
+                        resultSet.getString("sha256")));
+        if (packs.isEmpty()) {
+            throw new RevisionNotFoundException();
+        }
+        return packs.getFirst();
+    }
+
+    private byte[] readAsset(PackFile pack, String path) {
+        Path file = directory.resolve(pack.sha256() + ".zip");
+        if (!Files.isRegularFile(file)) {
+            throw new IllegalStateException("Resource pack ZIP is missing");
+        }
+        try (ZipFile zip = new ZipFile(file.toFile())) {
+            ZipEntry entry = zip.getEntry(path);
+            return entry == null || entry.isDirectory() ? null : read(zip, entry, MAX_ENTRY_SIZE);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Cannot read resource pack ZIP", exception);
+        }
+    }
+
+    private static void validateAssetPath(String path) {
+        try {
+            validateName(path);
+        } catch (IllegalArgumentException exception) {
+            throw new AssetNotFoundException();
+        }
+        String[] parts = path.split("/", 4);
+        boolean allowed = parts.length == 4
+                && parts[0].equals("assets")
+                && parts[1].matches("[a-z0-9_.-]+")
+                && Set.of("items", "models", "textures", "lang").contains(parts[2])
+                && parts[3].matches("[a-z0-9_./-]+")
+                && (parts[3].endsWith(".json")
+                        || parts[3].endsWith(".png")
+                        || parts[3].endsWith(".mcmeta"));
+        if (!allowed) {
+            throw new AssetNotFoundException();
+        }
+    }
+
+    private void validateAssetContent(String path, byte[] content) {
+        if (path.endsWith(".png")) {
+            if (content.length < PNG_SIGNATURE.length
+                    || !Arrays.equals(
+                            PNG_SIGNATURE,
+                            Arrays.copyOf(content, PNG_SIGNATURE.length))) {
+                throw new AssetNotFoundException();
+            }
+            return;
+        }
+        try {
+            if (json.readTree(content) == null) {
+                throw new AssetNotFoundException();
+            }
+        } catch (IOException exception) {
+            throw new AssetNotFoundException();
         }
     }
 
@@ -575,6 +682,14 @@ public class ResourcePackService {
         }
     }
 
+    public static final class AssetNotFoundException extends IllegalArgumentException {
+        public AssetNotFoundException() {
+            super("Resource pack asset not found");
+        }
+    }
+
+    public record Asset(byte[] content, String contentType, String etag) {}
+
     private record Hashes(
             byte[] sha1,
             byte[] sha256,
@@ -583,4 +698,6 @@ public class ResourcePackService {
             long size) {}
 
     private record PackFormat(int minimum, int maximum) {}
+
+    private record PackFile(String kind, String minecraftVersion, String sha256) {}
 }

@@ -1,6 +1,7 @@
 package ru.arzer0.issueisekai.panel.api;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -10,6 +11,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,6 +29,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.arzer0.issueisekai.panel.report.ReportQueueService;
+import ru.arzer0.issueisekai.panel.server.ResourcePackService;
 
 @SpringBootTest(
         properties = {
@@ -37,6 +41,7 @@ class ReportApiControllerTest {
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper json;
     @MockitoBean private ReportQueueService reports;
+    @MockitoBean private ResourcePackService resourcePacks;
 
     private UUID reportId;
     private UUID serverId;
@@ -217,6 +222,29 @@ class ReportApiControllerTest {
 
         verify(reports).join(reportId, "operator");
         verify(reports).leave(reportId, "operator");
+    }
+
+    @Test
+    void servesImmutablePackAssetsOnlyToAuthenticatedUsers() throws Exception {
+        UUID revisionId = UUID.randomUUID();
+        when(resourcePacks.asset(revisionId, "assets/example/items/ruby.json"))
+                .thenReturn(new ResourcePackService.Asset(
+                        "{}".getBytes(), "application/json", "abcdef"));
+
+        mvc.perform(get(
+                        "/api/resource-packs/{revisionId}/assets/example/items/ruby.json",
+                        revisionId))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get(
+                                "/api/resource-packs/{revisionId}/assets/example/items/ruby.json",
+                                revisionId)
+                        .with(user("operator").roles("OPERATOR")))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/json"))
+                .andExpect(content().string("{}"))
+                .andExpect(header().string("ETag", "\"abcdef\""))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("Cache-Control", containsString("immutable")));
     }
 
     private ReportQueueService.ReportDetail detail() {

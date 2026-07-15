@@ -18,6 +18,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.sql.ResultSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -88,6 +91,47 @@ class ResourcePackServiceTest {
                 IllegalArgumentException.class,
                 () -> service.upload(
                         serverId, "Old format", "26.1.2", packId, incompatible));
+    }
+
+    @Test
+    void readsOnlyAllowlistedAssetsFromImmutableZip() throws Exception {
+        byte[] zip = zip("assets/example/items/ruby.json", "{}");
+        String sha256 = HexFormat.of()
+                .formatHex(MessageDigest.getInstance("SHA-256").digest(zip));
+        Files.write(directory.resolve(sha256 + ".zip"), zip);
+        NamedParameterJdbcTemplate database = mock(NamedParameterJdbcTemplate.class);
+        ObjectProvider<NamedParameterJdbcTemplate> databases = mock(ObjectProvider.class);
+        when(databases.getObject()).thenReturn(database);
+        ResultSet resultSet = mock(ResultSet.class);
+        when(resultSet.getString("kind")).thenReturn("SERVER");
+        when(resultSet.getString("minecraft_version")).thenReturn("26.1.2");
+        when(resultSet.getString("sha256")).thenReturn(sha256);
+        when(database.query(
+                        anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenAnswer(invocation -> {
+                    RowMapper<Object> mapper = invocation.getArgument(2);
+                    return List.of(mapper.mapRow(resultSet, 0));
+                });
+        var service = new ResourcePackService(databases, new ObjectMapper(), directory.toString());
+
+        ResourcePackService.Asset asset = service.asset(
+                UUID.randomUUID(), "assets/example/items/ruby.json");
+
+        assertEquals("application/json", asset.contentType());
+        assertEquals("{}", new String(asset.content(), StandardCharsets.UTF_8));
+        assertThrows(
+                ResourcePackService.AssetNotFoundException.class,
+                () -> service.asset(UUID.randomUUID(), "assets/example/sounds/unsafe.ogg"));
+
+        byte[] invalidPng = zip("assets/example/textures/fake.png", "not-a-png");
+        String invalidSha = HexFormat.of()
+                .formatHex(MessageDigest.getInstance("SHA-256").digest(invalidPng));
+        Files.write(directory.resolve(invalidSha + ".zip"), invalidPng);
+        when(resultSet.getString("sha256")).thenReturn(invalidSha);
+        assertThrows(
+                ResourcePackService.AssetNotFoundException.class,
+                () -> service.asset(
+                        UUID.randomUUID(), "assets/example/textures/fake.png"));
     }
 
     private static byte[] zip(String assetName, String asset) throws IOException {

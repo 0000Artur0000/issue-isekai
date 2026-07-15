@@ -2,6 +2,10 @@ package ru.arzer0.issueisekai.panel.user;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.hamcrest.Matchers.containsString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -11,6 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +33,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import ru.arzer0.issueisekai.panel.report.ReportQueueService;
+import ru.arzer0.issueisekai.panel.api.CreateReportRequest;
+import ru.arzer0.issueisekai.panel.report.ReportIngestService;
+import ru.arzer0.issueisekai.panel.server.ServerInstance;
+import ru.arzer0.issueisekai.panel.server.ServerService;
 
 @SpringBootTest(
         properties = {
@@ -43,6 +52,8 @@ class SecurityConfigurationTest {
     @Autowired private PasswordEncoder passwords;
     @MockitoBean private UserAccountRepository users;
     @MockitoBean private ReportQueueService reports;
+    @MockitoBean private ServerService servers;
+    @MockitoBean private ReportIngestService ingest;
 
     @BeforeEach
     void setUp() {
@@ -62,10 +73,59 @@ class SecurityConfigurationTest {
         mvc.perform(get("/reports"))
                 .andExpect(status().isFound())
                 .andExpect(redirectedUrl("http://localhost/login"));
+        mvc.perform(get("/api/reports")).andExpect(status().isUnauthorized());
         mvc.perform(get("/users").with(user("operator").roles("OPERATOR")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/users").with(user("operator").roles("OPERATOR")))
                 .andExpect(status().isForbidden());
         mvc.perform(post("/users").with(user("admin").roles("ADMIN")))
                 .andExpect(status().isForbidden());
+        mvc.perform(post("/api/reports/{id}/participants", UUID.randomUUID())
+                        .with(user("operator").roles("OPERATOR")))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/reports")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+        ServerInstance server = mock(ServerInstance.class);
+        UUID reportId = UUID.randomUUID();
+        when(servers.findEnabledByApiKey("server-key")).thenReturn(Optional.of(server));
+        when(ingest.ingest(eq(server), any()))
+                .thenReturn(new ReportIngestService.Result(reportId, true));
+        var request = new CreateReportRequest(
+                UUID.randomUUID(),
+                "gameplay",
+                "Player cannot open the chest.",
+                UUID.randomUUID(),
+                "Steve",
+                "minecraft:overworld",
+                10,
+                64,
+                -20,
+                CreateReportRequest.GameMode.SURVIVAL,
+                Instant.parse("2026-07-15T00:00:00Z"),
+                "26.1.2");
+        mvc.perform(post("/api/v1/reports")
+                        .header("X-Server-Key", "server-key")
+                        .contentType("application/json")
+                        .content(json.writeValueAsBytes(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.report_id").value(reportId.toString()));
+        mvc.perform(post("/api/v1/reports")
+                        .contentType("application/json")
+                        .content(new byte[4 * 1024 * 1024 + 1]))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.message").value("Payload exceeds 4 MiB"));
+        mvc.perform(get("/api/me"))
+                .andExpect(header().string(
+                        "Content-Security-Policy", containsString("object-src 'none'")));
+
+        mvc.perform(post("/login")
+                        .param("username", "operator")
+                        .param("password", "wrong-password")
+                        .with(csrf()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(unauthenticated());
 
         MockHttpSession session = new MockHttpSession();
         String sessionId = session.getId();
@@ -74,6 +134,7 @@ class SecurityConfigurationTest {
                         .param("username", "operator")
                         .param("password", "secret-password")
                         .with(csrf()))
+                .andExpect(status().isNoContent())
                 .andExpect(authenticated().withRoles("OPERATOR"))
                 .andReturn();
         MockHttpSession authenticatedSession =
@@ -81,8 +142,7 @@ class SecurityConfigurationTest {
         assertNotEquals(sessionId, authenticatedSession.getId());
 
         mvc.perform(post("/logout").session(authenticatedSession).with(csrf()))
-                .andExpect(status().isFound())
-                .andExpect(redirectedUrl("/login?logout"))
+                .andExpect(status().isNoContent())
                 .andExpect(unauthenticated());
     }
 
@@ -106,6 +166,7 @@ class SecurityConfigurationTest {
                         .header(beforeLogin.header(), beforeLogin.token())
                         .param("username", "operator")
                         .param("password", "secret-password"))
+                .andExpect(status().isNoContent())
                 .andExpect(authenticated().withRoles("OPERATOR"))
                 .andReturn();
         MockHttpSession authenticatedSession =
@@ -126,6 +187,7 @@ class SecurityConfigurationTest {
         mvc.perform(post("/logout")
                         .session(authenticatedSession)
                         .header(afterLogin.header(), afterLogin.token()))
+                .andExpect(status().isNoContent())
                 .andExpect(unauthenticated());
 
         MvcResult afterLogoutIdentity = mvc.perform(get("/api/me"))
@@ -142,6 +204,7 @@ class SecurityConfigurationTest {
                         .header(afterLogout.header(), afterLogout.token())
                         .param("username", "operator")
                         .param("password", "secret-password"))
+                .andExpect(status().isNoContent())
                 .andExpect(authenticated().withRoles("OPERATOR"))
                 .andReturn();
         MockHttpSession secondAuthenticatedSession =
