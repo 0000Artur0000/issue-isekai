@@ -54,7 +54,11 @@ public record CreateReportRequest(
             ResourcePackSnapshot resourcePack,
             List<InventorySlot> slots,
             String itemsNbtBase64,
-            String captureError) {}
+            String captureError) {
+        public InventorySnapshot {
+            slots = List.copyOf(slots);
+        }
+    }
 
     public record ResourcePackSnapshot(UUID id, String sha1, String status) {}
 
@@ -68,15 +72,31 @@ public record CreateReportRequest(
             Integer maxDamage,
             String itemModel,
             CustomModelData customModelData,
-            List<Enchantment> enchantments) {}
+            List<Enchantment> enchantments) {
+        public InventorySlot {
+            lore = List.copyOf(lore);
+            enchantments = List.copyOf(enchantments);
+        }
+    }
 
-    public record ItemText(String plain, Map<String, Object> component) {}
+    public record ItemText(String plain, Map<String, Object> component) {
+        public ItemText {
+            component = Map.copyOf(component);
+        }
+    }
 
     public record CustomModelData(
             List<Double> floats,
             List<Boolean> flags,
             List<String> strings,
-            List<Integer> colors) {}
+            List<Integer> colors) {
+        public CustomModelData {
+            floats = List.copyOf(floats);
+            flags = List.copyOf(flags);
+            strings = List.copyOf(strings);
+            colors = List.copyOf(colors);
+        }
+    }
 
     public record Enchantment(String key, Integer level) {}
 }

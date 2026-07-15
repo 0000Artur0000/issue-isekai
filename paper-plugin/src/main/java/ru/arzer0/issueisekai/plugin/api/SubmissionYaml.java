@@ -1,6 +1,10 @@
 package ru.arzer0.issueisekai.plugin.api;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -21,6 +25,12 @@ public final class SubmissionYaml {
         yaml.set("game_mode", submission.gameMode());
         yaml.set("reported_at", submission.reportedAt());
         yaml.set("paper_version", submission.paperVersion());
+        if (submission.inventory() != null) {
+            yaml.set(
+                    "inventory",
+                    ReportJson.read(
+                            ReportJson.write(submission.inventory()), Map.class));
+        }
         return yaml.saveToString();
     }
 
@@ -31,6 +41,7 @@ public final class SubmissionYaml {
         } catch (InvalidConfigurationException exception) {
             throw new IllegalArgumentException("Invalid submission YAML", exception);
         }
+        ConfigurationSection inventory = yaml.getConfigurationSection("inventory");
         return new CreateReportRequest(
                 UUID.fromString(required(yaml, "submission_id")),
                 required(yaml, "category"),
@@ -43,7 +54,26 @@ public final class SubmissionYaml {
                 integer(yaml, "z"),
                 required(yaml, "game_mode"),
                 required(yaml, "reported_at"),
-                required(yaml, "paper_version"));
+                required(yaml, "paper_version"),
+                inventory == null
+                        ? null
+                        : ReportJson.read(
+                                ReportJson.write(plain(inventory)),
+                                CreateReportRequest.InventorySnapshot.class));
+    }
+
+    private static Object plain(Object value) {
+        if (value instanceof ConfigurationSection section) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            for (String key : section.getKeys(false)) {
+                result.put(key, plain(section.get(key)));
+            }
+            return result;
+        }
+        if (value instanceof List<?> list) {
+            return list.stream().map(SubmissionYaml::plain).toList();
+        }
+        return value;
     }
 
     private static String required(YamlConfiguration yaml, String key) {

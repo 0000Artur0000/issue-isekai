@@ -1,12 +1,14 @@
 package ru.arzer0.issueisekai.plugin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,7 @@ class PluginConfigTest {
                 config.categories().stream().map(PluginConfig.Category::id).toList());
         assertEquals(20, config.maxDeliveriesPerRun());
         assertEquals(1000, config.maxQueuedReports());
+        assertNull(config.resourcePackId());
     }
 
     @Test
@@ -40,6 +43,15 @@ class PluginConfigTest {
                 "cooldown-seconds")) {
             assertInvalid(config -> config.set(key, 0));
         }
+        assertInvalid(config -> config.set("resource-pack-id", UUID.randomUUID().toString()));
+        assertInvalid(config -> {
+            config.set("resource-pack-id", "not-a-uuid");
+            config.set("resource-pack-sha1", "0".repeat(40));
+        });
+        assertInvalid(config -> {
+            config.set("resource-pack-id", UUID.randomUUID().toString());
+            config.set("resource-pack-sha1", "bad");
+        });
     }
 
     private static void assertInvalid(Consumer<YamlConfiguration> mutation) {

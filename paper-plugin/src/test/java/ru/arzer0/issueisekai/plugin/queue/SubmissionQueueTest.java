@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,24 @@ class SubmissionQueueTest {
             assertThrows(CompletionException.class, () -> restartedQueue.enqueue(submission).join());
         }
         assertTrue(Files.isDirectory(directory.resolve("dead-letter")));
+    }
+
+    @Test
+    void preservesInventoryBlockAcrossRestart(@TempDir Path directory) throws Exception {
+        CreateReportRequest submission;
+        try (var input = Objects.requireNonNull(
+                getClass().getResourceAsStream("/create-report-request-with-inventory.json"))) {
+            submission = ru.arzer0.issueisekai.plugin.api.ReportJson.read(
+                    new String(input.readAllBytes(), StandardCharsets.UTF_8),
+                    CreateReportRequest.class);
+        }
+
+        try (var queue = new SubmissionQueue(directory, 1)) {
+            queue.enqueue(submission).join();
+        }
+        try (var queue = new SubmissionQueue(directory, 1)) {
+            assertEquals(submission, queue.load(1).join().getFirst());
+        }
     }
 
     private static CreateReportRequest submission() {

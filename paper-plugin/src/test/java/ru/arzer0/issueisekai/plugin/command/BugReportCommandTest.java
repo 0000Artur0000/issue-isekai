@@ -10,10 +10,13 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
+import java.util.logging.Logger;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
+import ru.arzer0.issueisekai.plugin.api.CreateReportRequest;
 
 class BugReportCommandTest {
     @Test
@@ -49,6 +52,38 @@ class BugReportCommandTest {
         assertTrue(pluginYaml.contains("- bug"));
         assertTrue(pluginYaml.contains("bugreport.submit:\n    default: true"));
         assertTrue(pluginYaml.contains("bugreport.open.others:\n    default: op"));
+    }
+
+    @Test
+    void dropsRawInventoryBeforeExceedingIngestLimit() {
+        var inventory = new CreateReportRequest.InventorySnapshot(
+                1,
+                "26.1.2",
+                2,
+                null,
+                List.of(),
+                "x".repeat(4 * 1024 * 1024),
+                null);
+        var submission = new CreateReportRequest(
+                UUID.randomUUID(),
+                "gameplay",
+                "Player cannot open the chest.",
+                UUID.randomUUID(),
+                "Steve",
+                "minecraft:overworld",
+                1,
+                64,
+                2,
+                "SURVIVAL",
+                "2026-07-15T00:00:00Z",
+                "26.1.2",
+                inventory);
+
+        CreateReportRequest fitted =
+                BugReportCommand.fitBodyLimit(submission, Logger.getAnonymousLogger());
+
+        assertNull(fitted.inventory().itemsNbtBase64());
+        assertEquals("TOO_LARGE", fitted.inventory().captureError());
     }
 
     @SuppressWarnings("unchecked")

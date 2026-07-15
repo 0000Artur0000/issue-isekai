@@ -28,9 +28,12 @@ class DeliveryWorkerTest {
     @Test
     void keepsRetryableDeletesDeliveredAndMovesPermanent(@TempDir Path directory) throws Exception {
         var status = new AtomicInteger(503);
+        var received = new AtomicReference<CreateReportRequest>();
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         server.createContext("/api/v1/reports", exchange -> {
-            exchange.getRequestBody().readAllBytes();
+            received.set(ReportJson.read(
+                    new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8),
+                    CreateReportRequest.class));
             byte[] response = ReportJson.write(new CreateReportResponse(UUID.randomUUID()))
                     .getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(status.get(), response.length);
@@ -63,6 +66,7 @@ class DeliveryWorkerTest {
 
             worker.runOnce();
             assertEquals(java.util.List.of(first), queue.load(20).join());
+            assertEquals(first.inventory(), received.get().inventory());
 
             status.set(201);
             worker.runOnce();
@@ -93,6 +97,14 @@ class DeliveryWorkerTest {
                 -20,
                 "SURVIVAL",
                 "2026-07-13T10:00:00Z",
-                "26.1.2");
+                "26.1.2",
+                new CreateReportRequest.InventorySnapshot(
+                        1,
+                        "26.1.2",
+                        2,
+                        null,
+                        java.util.List.of(),
+                        "AQID",
+                        null));
     }
 }

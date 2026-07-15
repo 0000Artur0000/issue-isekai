@@ -60,5 +60,6 @@ class CreateReportContractTest {
         assertEquals(
                 JsonParser.parseString(fixture),
                 JsonParser.parseString(ReportJson.write(request)));
+        assertEquals(request, SubmissionYaml.read(SubmissionYaml.write(request)));
     }
 }
