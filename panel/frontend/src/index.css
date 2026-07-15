@@ -6,3 +6,77 @@
 body {
   margin: 0;
 }
+
+:focus-visible {
+  outline: 2px solid #6b8afd;
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+}
+
+.skip-link:focus {
+  left: 8px;
+  top: 8px;
+  padding: 4px 8px;
+  background: Canvas;
+  z-index: 1;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+}
+
+nav[aria-label='Основная навигация'] {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+}
+
+nav a {
+  color: inherit;
+  text-decoration: none;
+  padding: 4px 2px;
+}
+
+nav a[aria-current='page'] {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+main {
+  padding: 16px;
+}
+
+.whoami {
+  opacity: 0.75;
+}
+
+.login {
+  max-width: 320px;
+  margin: 10vh auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login input {
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.login button {
+  margin-top: 8px;
+}
+
+[role='alert'] {
+  color: #d43d3d;
+  margin: 0;
+}

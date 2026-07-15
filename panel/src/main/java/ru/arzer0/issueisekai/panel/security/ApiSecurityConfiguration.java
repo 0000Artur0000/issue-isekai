@@ -25,11 +25,13 @@ public class ApiSecurityConfiguration {
         RequestMatcher api = request -> request.getRequestURI()
                 .startsWith(request.getContextPath() + "/api/");
         return http.authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/assets/**", "/app.css", "/favicon.ico")
+                        .requestMatchers(
+                                "/assets/**", "/app.css", "/favicon.ico", "/favicon.svg",
+                                "/index.html")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/reports")
                         .permitAll()
-                        .requestMatchers("/api/me")
+                        .requestMatchers("/api/me", "/login")
                         .permitAll()
                         .requestMatchers("/actuator/health/**")
                         .permitAll()
@@ -53,6 +55,9 @@ public class ApiSecurityConfiguration {
                                 new LoginUrlAuthenticationEntryPoint("/login"),
                                 new NegatedRequestMatcher(api)))
                 .formLogin(form -> form
+                        // SPA renders /login itself; without loginPage() Spring would
+                        // serve its generated default page to anonymous users
+                        .loginPage("/login")
                         .successHandler((request, response, authentication) ->
                                 response.setStatus(HttpStatus.NO_CONTENT.value()))
                         .failureHandler((request, response, exception) ->
