@@ -11,9 +11,10 @@ import {
 import { ApiError, login, logout } from './api'
 import { useAuth } from './auth'
 import Board from './Board'
+import Report from './Report'
 import Timeline from './Timeline'
 
-// ponytail: stub pages; real content arrives in frontend steps 4-5
+// ponytail: stub pages; real content arrives in frontend step 5
 function Stub({ title }: { title: string }) {
   return <h1>{title}</h1>
 }
@@ -132,7 +133,7 @@ export default function App() {
       <Route element={<Shell />}>
         <Route path="/board" element={<Board />} />
         <Route path="/timeline" element={<Timeline />} />
-        <Route path="/reports/:id" element={<Stub title="Заявка" />} />
+        <Route path="/reports/:id" element={<Report />} />
         <Route element={<RequireAdmin />}>
           <Route path="/users" element={<Stub title="Пользователи" />} />
           <Route path="/servers" element={<Stub title="Серверы" />} />

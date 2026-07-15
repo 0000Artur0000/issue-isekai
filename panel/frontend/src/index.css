@@ -168,3 +168,155 @@ main {
   font-size: 16px;
   margin: 20px 0 8px;
 }
+
+.report-detail {
+  max-width: 720px;
+}
+
+.description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.description figure {
+  margin: 8px 0;
+}
+
+.description img,
+.description video,
+.description iframe {
+  max-width: 100%;
+  max-height: 360px;
+  border: 0;
+}
+
+.description iframe {
+  width: 480px;
+  aspect-ratio: 16 / 9;
+  max-height: none;
+}
+
+.description figcaption {
+  font-size: 13px;
+}
+
+.report-meta dt {
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.report-meta dd {
+  margin: 2px 0 0;
+}
+
+.workflow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+  border-radius: 6px;
+}
+
+.workflow label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.workflow input,
+.workflow select {
+  font: inherit;
+  padding: 4px 8px;
+}
+
+.audit {
+  padding-left: 20px;
+}
+
+.inv-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 40px);
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.inv-armor {
+  grid-template-columns: repeat(5, 40px);
+}
+
+.inv-slot {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border: 1px solid color-mix(in srgb, CanvasText 35%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, CanvasText 8%, Canvas);
+  padding: 0;
+  font: inherit;
+}
+
+.inv-slot.selected {
+  outline: 2px solid #d4a53d;
+  outline-offset: 1px;
+}
+
+.item-icon {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+
+.item-fallback {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.inv-amount {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.item-tooltip {
+  position: absolute;
+  z-index: 2;
+  top: 100%;
+  left: 0;
+  width: max-content;
+  max-width: 260px;
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, CanvasText 35%, transparent);
+  border-radius: 4px;
+  background: Canvas;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
+}
+
+.inv-slot.flip .item-tooltip {
+  left: auto;
+  right: 0;
+}
+
+.item-tooltip p {
+  margin: 2px 0;
+  font-size: 13px;
+}
+
+.tooltip-name {
+  font-weight: 600;
+}
+
+.tooltip-enchant {
+  color: #8888d4;
+}
+
+.tooltip-model {
+  opacity: 0.6;
+  font-size: 12px;
+}
