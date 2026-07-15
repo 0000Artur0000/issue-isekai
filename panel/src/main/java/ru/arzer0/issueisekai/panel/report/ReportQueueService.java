@@ -1,6 +1,7 @@
 package ru.arzer0.issueisekai.panel.report;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -8,6 +9,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -113,9 +115,36 @@ public class ReportQueueService {
                 new MapSqlParameterSource("id", id),
                 ReportQueueService::detail);
         if (reports.isEmpty()) {
-            throw new IllegalArgumentException("Report not found");
+            throw new ReportNotFoundException();
         }
         return reports.getFirst();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<InventorySnapshot> inventory(UUID reportId) {
+        NamedParameterJdbcTemplate database = database();
+        List<InventorySnapshot> snapshots = database.query(
+                """
+                        SELECT ri.schema_version, ri.minecraft_version,
+                               ri.selected_hotbar_slot, ri.normalized::text AS normalized,
+                               ri.capture_error, ri.created_at,
+                               r.resource_pack_match,
+                               rp.id AS pack_revision_id, rp.display_name AS pack_name,
+                               rp.resource_pack_id AS pack_id,
+                               encode(rp.sha1, 'hex') AS pack_sha1,
+                               encode(rp.content_sha256, 'hex') AS pack_sha256
+                        FROM report_inventories ri
+                        JOIN reports r ON r.id = ri.report_id
+                        LEFT JOIN resource_packs rp ON rp.id = r.resource_pack_id
+                        WHERE ri.report_id = :reportId
+                        """,
+                new MapSqlParameterSource("reportId", reportId),
+                this::inventorySnapshot);
+        if (snapshots.isEmpty()) {
+            requireReport(database, reportId);
+            return Optional.empty();
+        }
+        return Optional.of(snapshots.getFirst());
     }
 
     @Transactional(readOnly = true)
@@ -272,7 +301,7 @@ public class ReportQueueService {
                         """,
                 parameters);
         if (updated == 0) {
-            throw new IllegalArgumentException("Report not found");
+            throw new ReportNotFoundException();
         }
         database.update(
                 """
@@ -304,7 +333,7 @@ public class ReportQueueService {
                         resultSet.getObject("assignee_id", UUID.class),
                         resultSet.getObject("duplicate_of_id", UUID.class)));
         if (states.isEmpty()) {
-            throw new IllegalArgumentException("Report not found");
+            throw new ReportNotFoundException();
         }
         return states.getFirst();
     }
@@ -322,7 +351,7 @@ public class ReportQueueService {
 
     private static void requireReport(NamedParameterJdbcTemplate database, UUID reportId) {
         if (!exists(database, "reports", reportId, false)) {
-            throw new IllegalArgumentException("Report not found");
+            throw new ReportNotFoundException();
         }
     }
 
@@ -383,6 +412,56 @@ public class ReportQueueService {
                 participants(resultSet.getString("participants")),
                 resultSet.getBoolean("has_inventory"),
                 instant(resultSet, "created_at"));
+    }
+
+    private InventorySnapshot inventorySnapshot(ResultSet resultSet, int row) throws SQLException {
+        JsonNode normalized;
+        try {
+            normalized = json.readTree(resultSet.getString("normalized"));
+        } catch (JsonProcessingException exception) {
+            throw new SQLException("Invalid inventory JSON", exception);
+        }
+        JsonNode slots = normalized.path("slots");
+        if (!slots.isArray()) {
+            throw new SQLException("Inventory slots must be an array");
+        }
+        JsonNode resourcePack = normalized.path("resource_pack");
+        UUID revisionId = resultSet.getObject("pack_revision_id", UUID.class);
+        return new InventorySnapshot(
+                resultSet.getInt("schema_version"),
+                resultSet.getString("minecraft_version"),
+                resultSet.getInt("selected_hotbar_slot"),
+                slots,
+                new ResourcePackState(
+                        uuid(resourcePack.path("id")),
+                        text(resourcePack.path("sha1")),
+                        resourcePack.path("status").asText("UNKNOWN")),
+                revisionId == null
+                        ? null
+                        : new PackRevision(
+                                revisionId,
+                                resultSet.getString("pack_name"),
+                                resultSet.getObject("pack_id", UUID.class),
+                                resultSet.getString("pack_sha1"),
+                                resultSet.getString("pack_sha256")),
+                resultSet.getString("resource_pack_match"),
+                resultSet.getString("capture_error"),
+                instant(resultSet, "created_at"));
+    }
+
+    private static UUID uuid(JsonNode node) throws SQLException {
+        if (!node.isTextual()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(node.textValue());
+        } catch (IllegalArgumentException exception) {
+            throw new SQLException("Invalid resource pack UUID", exception);
+        }
+    }
+
+    private static String text(JsonNode node) {
+        return node.isTextual() ? node.textValue() : null;
     }
 
     private List<Participant> participants(String value) throws SQLException {
@@ -508,6 +587,28 @@ public class ReportQueueService {
             String oldValue,
             String newValue,
             Instant createdAt) {}
+
+    public record InventorySnapshot(
+            int schemaVersion,
+            String minecraftVersion,
+            int selectedHotbarSlot,
+            JsonNode slots,
+            ResourcePackState resourcePack,
+            PackRevision packRevision,
+            String packMatch,
+            String captureError,
+            Instant createdAt) {}
+
+    public record ResourcePackState(UUID id, String sha1, String status) {}
+
+    public record PackRevision(
+            UUID id, String name, UUID resourcePackId, String sha1, String sha256) {}
+
+    public static final class ReportNotFoundException extends IllegalArgumentException {
+        public ReportNotFoundException() {
+            super("Report not found");
+        }
+    }
 
     record WorkflowState(
             Status status, Priority priority, UUID assigneeId, UUID duplicateOfId) {}

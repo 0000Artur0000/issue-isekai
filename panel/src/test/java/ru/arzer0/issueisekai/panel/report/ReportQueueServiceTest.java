@@ -249,4 +249,51 @@ class ReportQueueServiceTest {
                 () -> service.join(UUID.randomUUID(), "operator"));
         assertEquals(List.of("JOINED", "LEFT"), events);
     }
+
+    @Test
+    void readsOnlySafeInventoryFields() throws Exception {
+        NamedParameterJdbcTemplate database = mock(NamedParameterJdbcTemplate.class);
+        ObjectProvider<NamedParameterJdbcTemplate> databases = mock(ObjectProvider.class);
+        when(databases.getObject()).thenReturn(database);
+        UUID reportId = UUID.randomUUID();
+        UUID revisionId = UUID.randomUUID();
+        UUID packId = UUID.randomUUID();
+        OffsetDateTime createdAt = OffsetDateTime.now();
+        ResultSet resultSet = mock(ResultSet.class);
+        when(resultSet.getInt("schema_version")).thenReturn(1);
+        when(resultSet.getString("minecraft_version")).thenReturn("26.1.2");
+        when(resultSet.getInt("selected_hotbar_slot")).thenReturn(2);
+        when(resultSet.getString("normalized")).thenReturn("""
+                {
+                  "resource_pack": {"status": "SUCCESSFULLY_LOADED"},
+                  "slots": [{"slot": "hotbar_2", "material": "minecraft:stone"}],
+                  "items_nbt_base64": "must-not-leak"
+                }
+                """);
+        when(resultSet.getObject("pack_revision_id", UUID.class)).thenReturn(revisionId);
+        when(resultSet.getString("pack_name")).thenReturn("Lobby pack");
+        when(resultSet.getObject("pack_id", UUID.class)).thenReturn(packId);
+        when(resultSet.getString("pack_sha1")).thenReturn("0123456789");
+        when(resultSet.getString("pack_sha256")).thenReturn("abcdef");
+        when(resultSet.getString("resource_pack_match")).thenReturn("EXACT");
+        when(resultSet.getObject("created_at", OffsetDateTime.class)).thenReturn(createdAt);
+        when(database.query(
+                        anyString(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenAnswer(invocation -> {
+                    String sql = invocation.getArgument(0);
+                    assertFalse(sql.contains("raw_items"));
+                    RowMapper<ReportQueueService.InventorySnapshot> mapper =
+                            invocation.getArgument(2);
+                    return List.of(mapper.mapRow(resultSet, 0));
+                });
+        var service = new ReportQueueService(databases, new ObjectMapper());
+
+        ReportQueueService.InventorySnapshot snapshot =
+                service.inventory(reportId).orElseThrow();
+
+        assertEquals("hotbar_2", snapshot.slots().get(0).get("slot").asText());
+        assertEquals("SUCCESSFULLY_LOADED", snapshot.resourcePack().status());
+        assertEquals(revisionId, snapshot.packRevision().id());
+        assertFalse(snapshot.slots().toString().contains("must-not-leak"));
+    }
 }
