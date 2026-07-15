@@ -1,9 +1,14 @@
 package ru.arzer0.issueisekai.panel.api;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -17,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.arzer0.issueisekai.panel.report.ReportQueueService;
@@ -157,6 +163,60 @@ class ReportApiControllerTest {
         mvc.perform(get("/api/reports/{id}/inventory", withoutInventory)
                         .with(user("operator").roles("OPERATOR")))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void adminUpdatesWorkflowWithAuthenticatedActor() throws Exception {
+        mvc.perform(put("/api/reports/{id}", reportId)
+                        .with(user("admin").roles("ADMIN"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "IN_PROGRESS",
+                                  "priority": "HIGH",
+                                  "assigneeId": null,
+                                  "duplicateOfId": null
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        verify(reports).update(
+                reportId,
+                ReportQueueService.Status.IN_PROGRESS,
+                ReportQueueService.Priority.HIGH,
+                null,
+                null,
+                "admin");
+    }
+
+    @Test
+    void operatorCannotUpdateWorkflow() throws Exception {
+        mvc.perform(put("/api/reports/{id}", reportId)
+                        .with(user("operator").roles("OPERATOR"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status": "RESOLVED", "priority": "NORMAL"}
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void operatorJoinsAndLeavesOnlyAsSelf() throws Exception {
+        var operator = user("operator").roles("OPERATOR");
+
+        mvc.perform(post("/api/reports/{id}/participants", reportId)
+                        .with(operator)
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+        mvc.perform(delete("/api/reports/{id}/participants", reportId)
+                        .with(operator)
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(reports).join(reportId, "operator");
+        verify(reports).leave(reportId, "operator");
     }
 
     private ReportQueueService.ReportDetail detail() {

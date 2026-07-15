@@ -1,13 +1,18 @@
 package ru.arzer0.issueisekai.panel.api;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -59,6 +64,31 @@ public class ReportApiController {
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
+    @PutMapping("/reports/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void update(
+            @PathVariable UUID id, @RequestBody UpdateReportRequest request, Principal principal) {
+        reports.update(
+                id,
+                request.status(),
+                request.priority(),
+                request.assigneeId(),
+                request.duplicateOfId(),
+                principal.getName());
+    }
+
+    @PostMapping("/reports/{id}/participants")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void join(@PathVariable UUID id, Principal principal) {
+        reports.join(id, principal.getName());
+    }
+
+    @DeleteMapping("/reports/{id}/participants")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void leave(@PathVariable UUID id, Principal principal) {
+        reports.leave(id, principal.getName());
+    }
+
     @GetMapping("/choices")
     public ChoicesResponse choices() {
         return new ChoicesResponse(
@@ -88,6 +118,9 @@ public class ReportApiController {
             List<Choice> assignees,
             List<Status> statuses,
             List<Priority> priorities) {}
+
+    public record UpdateReportRequest(
+            Status status, Priority priority, UUID assigneeId, UUID duplicateOfId) {}
 
     public record ErrorResponse(String message) {}
 }
