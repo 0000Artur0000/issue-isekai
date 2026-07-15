@@ -266,7 +266,10 @@ class ReportQueueServiceTest {
         when(resultSet.getString("normalized")).thenReturn("""
                 {
                   "resource_pack": {"status": "SUCCESSFULLY_LOADED"},
-                  "slots": [{"slot": "hotbar_2", "material": "minecraft:stone"}],
+                  "slots": [
+                    {"slot": "hotbar_2", "material": "minecraft:stone"},
+                    {"slot": "armor_head", "material": "minecraft:diamond_helmet"}
+                  ],
                   "items_nbt_base64": "must-not-leak"
                 }
                 """);
@@ -292,6 +295,7 @@ class ReportQueueServiceTest {
                 service.inventory(reportId).orElseThrow();
 
         assertEquals("hotbar_2", snapshot.slots().get(0).get("slot").asText());
+        assertEquals("armor_head", snapshot.slots().get(1).get("slot").asText());
         assertEquals("SUCCESSFULLY_LOADED", snapshot.resourcePack().status());
         assertEquals(revisionId, snapshot.packRevision().id());
         assertFalse(snapshot.slots().toString().contains("must-not-leak"));

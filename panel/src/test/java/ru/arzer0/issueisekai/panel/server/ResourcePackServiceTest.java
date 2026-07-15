@@ -134,6 +134,29 @@ class ResourcePackServiceTest {
                         UUID.randomUUID(), "assets/example/textures/fake.png"));
     }
 
+    @Test
+    void rejectsInvalidUnsafeAndCrossServerPacks() throws Exception {
+        NamedParameterJdbcTemplate database = mock(NamedParameterJdbcTemplate.class);
+        ObjectProvider<NamedParameterJdbcTemplate> databases = mock(ObjectProvider.class);
+        when(databases.getObject()).thenReturn(database);
+        when(database.queryForObject(
+                        anyString(), any(MapSqlParameterSource.class), eq(Boolean.class)))
+                .thenReturn(true);
+        when(database.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(0);
+        var service = new ResourcePackService(databases, new ObjectMapper(), directory.toString());
+        UUID serverId = UUID.randomUUID();
+        UUID packId = UUID.randomUUID();
+
+        assertRejected(service, serverId, packId, file("text/plain", zip("assets/example/item.json", "{}")));
+        assertRejected(service, serverId, packId, file("application/zip", rawZip("pack.mcmeta", "not-json")));
+        assertRejected(service, serverId, packId, file("application/zip", zip("/absolute.json", "{}")));
+        assertRejected(service, serverId, packId, file("application/zip", duplicateEntryZip()));
+        assertRejected(service, serverId, packId, file("application/zip", zip("assets/example/bomb.json", "0".repeat(1_048_576))));
+        assertThrows(
+                ResourcePackService.RevisionNotFoundException.class,
+                () -> service.activate(serverId, UUID.randomUUID()));
+    }
+
     private static byte[] zip(String assetName, String asset) throws IOException {
         return zip(assetName, asset, 75);
     }
@@ -151,6 +174,50 @@ class ResourcePackServiceTest {
             entry(zip, assetName, asset);
         }
         return bytes.toByteArray();
+    }
+
+    private static byte[] rawZip(String name, String value) throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
+            entry(zip, name, value);
+        }
+        return bytes.toByteArray();
+    }
+
+    private static byte[] duplicateEntryZip() throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
+            entry(zip, "pack.mcmeta", "{\"pack\":{\"pack_format\":75}}");
+            entry(zip, "assets/example/a.json", "{}");
+            entry(zip, "assets/example/b.json", "{}");
+        }
+        byte[] result = bytes.toByteArray();
+        byte[] from = "assets/example/b.json".getBytes(StandardCharsets.UTF_8);
+        byte[] to = "assets/example/a.json".getBytes(StandardCharsets.UTF_8);
+        for (int index = 0; index <= result.length - from.length; index++) {
+            boolean match = true;
+            for (int offset = 0; offset < from.length; offset++) {
+                match &= result[index + offset] == from[offset];
+            }
+            if (match) {
+                System.arraycopy(to, 0, result, index, to.length);
+            }
+        }
+        return result;
+    }
+
+    private static MockMultipartFile file(String contentType, byte[] content) {
+        return new MockMultipartFile("file", "pack.zip", contentType, content);
+    }
+
+    private static void assertRejected(
+            ResourcePackService service,
+            UUID serverId,
+            UUID packId,
+            MockMultipartFile file) {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.upload(serverId, "Invalid", "26.1.2", packId, file));
     }
 
     private static void entry(ZipOutputStream zip, String name, String value) throws IOException {

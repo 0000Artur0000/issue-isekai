@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -55,6 +56,8 @@ class ReportIngestServiceTest {
         assertEquals(reportId, duplicate.reportId());
         verify(database, times(1)).update(startsWith("INSERT INTO report_events"), any(Object[].class));
         verify(database, times(2)).update(startsWith("UPDATE servers"), any(Object[].class));
+        verify(database, never())
+                .update(startsWith("INSERT INTO report_inventories"), any(Object[].class));
     }
 
     @Test

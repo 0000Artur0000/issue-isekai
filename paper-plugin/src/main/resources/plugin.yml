@@ -8,8 +8,11 @@ commands:
   bugreport:
     description: Open the bug report dialog
     aliases:
+      - bug
       - bugreprt
     permission: bugreport.submit
 permissions:
   bugreport.submit:
     default: true
+  bugreport.open.others:
+    default: op

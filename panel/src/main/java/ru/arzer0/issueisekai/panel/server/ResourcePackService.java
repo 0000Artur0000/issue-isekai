@@ -90,6 +90,15 @@ public class ResourcePackService {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Resource pack ZIP is required");
         }
+        String contentType = file.getContentType();
+        if (contentType != null
+                && !Set.of(
+                                "application/zip",
+                                "application/x-zip-compressed",
+                                "application/octet-stream")
+                        .contains(contentType)) {
+            throw new IllegalArgumentException("Resource pack file must be a ZIP");
+        }
         Path temporary = temporaryFile(".upload-");
         try {
             Hashes hashes = copyAndHash(file, temporary);
