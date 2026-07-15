@@ -10,8 +10,10 @@ import {
 } from 'react-router-dom'
 import { ApiError, login, logout } from './api'
 import { useAuth } from './auth'
+import Board from './Board'
+import Timeline from './Timeline'
 
-// ponytail: stub pages; real content arrives in frontend steps 3-5
+// ponytail: stub pages; real content arrives in frontend steps 4-5
 function Stub({ title }: { title: string }) {
   return <h1>{title}</h1>
 }
@@ -128,8 +130,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route element={<Shell />}>
-        <Route path="/board" element={<Stub title="Доска" />} />
-        <Route path="/timeline" element={<Stub title="Лента" />} />
+        <Route path="/board" element={<Board />} />
+        <Route path="/timeline" element={<Timeline />} />
         <Route path="/reports/:id" element={<Stub title="Заявка" />} />
         <Route element={<RequireAdmin />}>
           <Route path="/users" element={<Stub title="Пользователи" />} />

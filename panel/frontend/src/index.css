@@ -80,3 +80,91 @@ main {
   color: #d43d3d;
   margin: 0;
 }
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filters input,
+.filters select,
+.filters button {
+  font: inherit;
+  padding: 4px 8px;
+}
+
+.board {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  overflow-x: auto;
+}
+
+.column {
+  flex: 1;
+  min-width: 240px;
+}
+
+.column h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 40px;
+}
+
+.card {
+  border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: Canvas;
+}
+
+.card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border: none;
+  padding: 0;
+}
+
+.card .snippet {
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  margin: 2px 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.badge {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.badge.priority-HIGH,
+.badge.priority-CRITICAL {
+  color: #d43d3d;
+  opacity: 1;
+}
+
+.timeline {
+  max-width: 640px;
+}
+
+.timeline .card {
+  margin-bottom: 8px;
+}
+
+.timeline h2 {
+  font-size: 16px;
+  margin: 20px 0 8px;
+}
