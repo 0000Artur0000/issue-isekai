@@ -28,7 +28,7 @@ public class UserService {
     }
 
     @Transactional
-    public void create(String username, String password, UserAccount.Role role) {
+    public UserAccount create(String username, String password, UserAccount.Role role) {
         String normalizedUsername = validateUsername(username);
         validatePassword(password);
         if (role == null) {
@@ -39,7 +39,7 @@ public class UserService {
             throw new IllegalArgumentException("Username already exists");
         }
         Instant now = Instant.now();
-        repository.saveAndFlush(new UserAccount(
+        return repository.saveAndFlush(new UserAccount(
                 UUID.randomUUID(),
                 normalizedUsername,
                 passwordEncoder.encode(password),
@@ -50,14 +50,14 @@ public class UserService {
     }
 
     @Transactional
-    public void update(UUID id, UserAccount.Role role, boolean enabled, String password) {
+    public UserAccount update(UUID id, UserAccount.Role role, boolean enabled, String password) {
         if (role == null) {
             throw new IllegalArgumentException("Role is required");
         }
         UserAccountRepository repository = repository();
         UserAccount account = repository
                 .findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(UserNotFoundException::new);
         if (account.isEnabled()
                 && account.getRole() == UserAccount.Role.ADMIN
                 && (!enabled || role != UserAccount.Role.ADMIN)
@@ -70,7 +70,7 @@ public class UserService {
             passwordHash = passwordEncoder.encode(password);
         }
         account.update(passwordHash, role, enabled, Instant.now());
-        repository.saveAndFlush(account);
+        return repository.saveAndFlush(account);
     }
 
     private UserAccountRepository repository() {
@@ -89,6 +89,12 @@ public class UserService {
         int bytes = password == null ? 0 : password.getBytes(StandardCharsets.UTF_8).length;
         if (bytes < 8 || bytes > 72) {
             throw new IllegalArgumentException("Password must contain between 8 and 72 bytes");
+        }
+    }
+
+    public static final class UserNotFoundException extends IllegalArgumentException {
+        public UserNotFoundException() {
+            super("User not found");
         }
     }
 }

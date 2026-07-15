@@ -27,7 +27,7 @@ public class ApiSecurityConfiguration {
                         .permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/reports/**")
                         .hasRole("ADMIN")
-                        .requestMatchers("/users/**", "/servers/**", "/admin/**")
+                        .requestMatchers("/api/admin/**", "/users/**", "/servers/**", "/admin/**")
                         .hasRole("ADMIN")
                         .anyRequest()
                         .authenticated())
