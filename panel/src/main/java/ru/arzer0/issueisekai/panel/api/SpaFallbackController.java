@@ -5,7 +5,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
 public class SpaFallbackController {
-    // ponytail: exact legacy routes win until the frontend build supplies index.html.
     @GetMapping({
         "/",
         "/login",

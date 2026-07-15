@@ -42,8 +42,7 @@ import ru.arzer0.issueisekai.panel.server.ServerService;
         properties = {
             "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration",
             "BOOTSTRAP_ADMIN_USERNAME=admin",
-            "BOOTSTRAP_ADMIN_PASSWORD=admin-password",
-            "spring.thymeleaf.check-template-location=false"
+            "BOOTSTRAP_ADMIN_PASSWORD=admin-password"
         })
 @AutoConfigureMockMvc
 class SecurityConfigurationTest {

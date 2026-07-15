@@ -26,8 +26,7 @@ public class ApiSecurityConfiguration {
                 .startsWith(request.getContextPath() + "/api/");
         return http.authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
-                                "/assets/**", "/app.css", "/favicon.ico", "/favicon.svg",
-                                "/index.html")
+                                "/assets/**", "/favicon.ico", "/favicon.svg", "/index.html")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/reports")
                         .permitAll()

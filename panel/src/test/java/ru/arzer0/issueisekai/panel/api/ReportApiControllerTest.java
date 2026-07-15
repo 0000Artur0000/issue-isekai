@@ -33,8 +33,7 @@ import ru.arzer0.issueisekai.panel.server.ResourcePackService;
 
 @SpringBootTest(
         properties = {
-            "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration",
-            "spring.thymeleaf.check-template-location=false"
+            "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
         })
 @AutoConfigureMockMvc
 class ReportApiControllerTest {

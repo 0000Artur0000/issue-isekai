@@ -7,15 +7,16 @@ IssueIsekai принимает баг-репорты из Minecraft Paper чер
 - `paper-plugin` — плагин Paper 26.1.2 для Java 25;
 - `panel` — Spring Boot панель с PostgreSQL, ролями и Telegram worker.
 
-Frontend панели отрисовывается Spring MVC и Thymeleaf. React и отдельный Node.js runtime не используются.
+Frontend панели — React/TypeScript SPA, собранная Vite и встроенная как статика в panel JAR. Отдельный Node.js runtime в production не используется.
 
 ## Возможности
 
-- `/bugreport` и `/bugreprt` открывают нативный Minecraft Dialog;
+- `/bug`, `/bugreport` и `/bugreprt` открывают нативный Minecraft Dialog;
 - категория, описание, игрок, мир, координаты, режим игры и версия Paper попадают в заявку;
 - дисковая очередь переживает недоступность панели и restart сервера;
 - разные Minecraft-серверы используют отдельные отзываемые API-ключи;
-- панель поддерживает поиск, фильтры, статусы, приоритеты, ответственного, дубликаты и аудит;
+- SPA содержит kanban-доску, timeline, detail со снимком инвентаря и admin-страницы пользователей, серверов и resource packs;
+- панель поддерживает поиск, фильтры, статусы, приоритеты, ответственного, участников, дубликаты и аудит;
 - роли `ADMIN` и `OPERATOR` ограничивают доступ к управлению;
 - Telegram worker повторяет неудачную отправку и отмечает только успешную;
 - Denizen необязателен и добавляет три события и script-команду.
@@ -24,6 +25,7 @@ Frontend панели отрисовывается Spring MVC и Thymeleaf. Reac
 
 - Paper `26.1.2`;
 - Java `25` для Paper и runtime панели;
+- Node.js `22` только для сборки frontend из исходников;
 - Docker с Compose для рекомендуемого запуска панели;
 - PostgreSQL `16+` для запуска панели без Compose.
 
@@ -32,6 +34,7 @@ Gradle `8.14.3` запускается на Java 21 и компилирует м
 ## Сборка
 
 ```shell
+npm --prefix panel/frontend test
 ./gradlew clean check :paper-plugin:jar :panel:bootJar --no-daemon
 ```
 
@@ -166,8 +169,8 @@ BOOTSTRAP_ADMIN_PASSWORD=change-me \
 
 ## Ручная приёмка
 
-1. Выполните `/bugreport`, отправьте описание длиннее 10 символов и найдите заявку в `/reports`.
-2. Повторите через алиас `/bugreprt`.
+1. Выполните `/bugreport`, отправьте описание длиннее 10 символов и найдите заявку на `/board`.
+2. Повторите через алиасы `/bug` и `/bugreprt`.
 3. Остановите панель, отправьте заявку, перезапустите Paper и затем панель. Заявка должна появиться один раз.
 4. Измените статус, приоритет и ответственного. В карточке должны появиться записи аудита.
 5. Проверьте, что `OPERATOR` видит заявки, но получает `403` на `/users` и `/servers`.
@@ -181,4 +184,10 @@ BOOTSTRAP_ADMIN_PASSWORD=change-me \
 - `IssueIsekai-plugin`;
 - `IssueIsekai-panel`.
 
-Workflow не публикует Docker image и ничего не развёртывает.
+Тег строгого вида `vX.Y.Z`, отправленный владельцем проекта, после успешного build-job автоматически:
+
+- публикует `ghcr.io/0000artur0000/issue-isekai-panel:X.Y.Z` и `latest`;
+- переименовывает оба JAR с версией и создаёт `SHA256SUMS`;
+- создаёт GitHub Release с release notes и этими файлами.
+
+Повторный запуск обновляет файлы уже существующего Release. CI ничего не развёртывает на серверы. Исполнитель не создаёт commit, push или tag: после проверки изменений это делает владелец проекта.

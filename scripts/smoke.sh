@@ -87,5 +87,10 @@ test "$asset" = '{}'
 
 echo "Smoke: SPA index"
 curl -fsS "$panel_url/login" | grep -q 'id="root"'
-curl -fsS -b "$cookies" "$panel_url/board" | grep -q 'id="root"'
+for route in board timeline "reports/$first_id" users servers; do
+  curl -fsS -b "$cookies" "$panel_url/$route" | grep -q 'id="root"'
+done
+unknown_api_code="$(curl -sS -o /dev/null -w '%{http_code}' \
+  -b "$cookies" "$panel_url/api/unknown")"
+test "$unknown_api_code" = "404"
 curl -fsS -o /dev/null -D - "$panel_url/board" -b "$cookies" | grep -qi 'content-security-policy'
