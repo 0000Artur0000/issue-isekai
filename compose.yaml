@@ -27,6 +27,8 @@ services:
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
       TELEGRAM_POLL_INTERVAL_MS: ${TELEGRAM_POLL_INTERVAL_MS:-30000}
       RESOURCE_PACK_DIR: /data/resource-packs
+      RESOURCE_PACK_EXPECTED_UID: 10001
+      RESOURCE_PACK_MIN_FREE_MB: ${RESOURCE_PACK_MIN_FREE_MB:-256}
     volumes:
       - resource-pack-data:/data/resource-packs
     ports:

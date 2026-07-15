@@ -25,6 +25,14 @@ jobs:
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew clean check :paper-plugin:jar :panel:bootJar -Porg.gradle.java.installations.paths="$JDK25_HOME" --no-daemon
+      - run: docker compose up -d --build --wait
+        env:
+          PANEL_PORT: "18080"
+      - run: ./scripts/smoke.sh
+        env:
+          PANEL_URL: http://127.0.0.1:18080
+      - if: always()
+        run: docker compose down -v --remove-orphans
       - uses: actions/upload-artifact@v4
         with:
           name: IssueIsekai-plugin
