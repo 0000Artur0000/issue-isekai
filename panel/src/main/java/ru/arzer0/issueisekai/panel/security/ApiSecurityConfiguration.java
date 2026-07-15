@@ -21,6 +21,8 @@ public class ApiSecurityConfiguration {
         return http.authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.POST, "/api/v1/reports")
                         .permitAll()
+                        .requestMatchers("/api/me")
+                        .permitAll()
                         .requestMatchers("/actuator/health/**")
                         .permitAll()
                         .requestMatchers("/error")

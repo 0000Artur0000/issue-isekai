@@ -1,6 +1,7 @@
 package ru.arzer0.issueisekai.panel.user;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -9,8 +10,10 @@ import static org.springframework.security.test.web.servlet.response.SecurityMoc
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +26,8 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import ru.arzer0.issueisekai.panel.report.ReportQueueService;
 
 @SpringBootTest(
         properties = {
@@ -34,8 +39,10 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class SecurityConfigurationTest {
     @Autowired private MockMvc mvc;
+    @Autowired private ObjectMapper json;
     @Autowired private PasswordEncoder passwords;
     @MockitoBean private UserAccountRepository users;
+    @MockitoBean private ReportQueueService reports;
 
     @BeforeEach
     void setUp() {
@@ -78,4 +85,79 @@ class SecurityConfigurationTest {
                 .andExpect(redirectedUrl("/login?logout"))
                 .andExpect(unauthenticated());
     }
+
+    @Test
+    void materializesAndRotatesCsrfAcrossLoginAndLogout() throws Exception {
+        MvcResult anonymous = mvc.perform(get("/api/me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authenticated").value(false))
+                .andExpect(jsonPath("$.username").isEmpty())
+                .andExpect(jsonPath("$.role").isEmpty())
+                .andExpect(jsonPath("$.csrfHeaderName").value("X-CSRF-TOKEN"))
+                .andExpect(jsonPath("$.csrfToken").isNotEmpty())
+                .andReturn();
+        MockHttpSession anonymousSession =
+                (MockHttpSession) anonymous.getRequest().getSession(false);
+        assertNotNull(anonymousSession);
+        CsrfValues beforeLogin = csrfValues(anonymous);
+
+        MvcResult login = mvc.perform(post("/login")
+                        .session(anonymousSession)
+                        .header(beforeLogin.header(), beforeLogin.token())
+                        .param("username", "operator")
+                        .param("password", "secret-password"))
+                .andExpect(authenticated().withRoles("OPERATOR"))
+                .andReturn();
+        MockHttpSession authenticatedSession =
+                (MockHttpSession) login.getRequest().getSession(false);
+        MvcResult authenticatedIdentity = mvc.perform(get("/api/me").session(authenticatedSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authenticated").value(true))
+                .andExpect(jsonPath("$.username").value("operator"))
+                .andExpect(jsonPath("$.role").value("OPERATOR"))
+                .andReturn();
+        CsrfValues afterLogin = csrfValues(authenticatedIdentity);
+        assertNotEquals(beforeLogin.token(), afterLogin.token());
+
+        mvc.perform(post("/api/reports/{id}/participants", UUID.randomUUID())
+                        .session(authenticatedSession)
+                        .header(afterLogin.header(), afterLogin.token()))
+                .andExpect(status().isNoContent());
+        mvc.perform(post("/logout")
+                        .session(authenticatedSession)
+                        .header(afterLogin.header(), afterLogin.token()))
+                .andExpect(unauthenticated());
+
+        MvcResult afterLogoutIdentity = mvc.perform(get("/api/me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authenticated").value(false))
+                .andReturn();
+        MockHttpSession afterLogoutSession =
+                (MockHttpSession) afterLogoutIdentity.getRequest().getSession(false);
+        CsrfValues afterLogout = csrfValues(afterLogoutIdentity);
+        assertNotEquals(afterLogin.token(), afterLogout.token());
+
+        MvcResult secondLogin = mvc.perform(post("/login")
+                        .session(afterLogoutSession)
+                        .header(afterLogout.header(), afterLogout.token())
+                        .param("username", "operator")
+                        .param("password", "secret-password"))
+                .andExpect(authenticated().withRoles("OPERATOR"))
+                .andReturn();
+        MockHttpSession secondAuthenticatedSession =
+                (MockHttpSession) secondLogin.getRequest().getSession(false);
+        MvcResult secondIdentity = mvc.perform(get("/api/me").session(secondAuthenticatedSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authenticated").value(true))
+                .andReturn();
+        assertNotEquals(afterLogout.token(), csrfValues(secondIdentity).token());
+    }
+
+    private CsrfValues csrfValues(MvcResult result) throws Exception {
+        var body = json.readTree(result.getResponse().getContentAsByteArray());
+        return new CsrfValues(
+                body.path("csrfHeaderName").asText(), body.path("csrfToken").asText());
+    }
+
+    private record CsrfValues(String header, String token) {}
 }
