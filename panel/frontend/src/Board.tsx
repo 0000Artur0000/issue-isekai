@@ -131,7 +131,11 @@ export default function Board() {
             {STATUSES.map((status) => {
               const column = columns[status]
               return (
-                <section key={status} className="column" aria-label={STATUS_LABELS[status]}>
+                <section
+                  key={status}
+                  className={`column status-${status}`}
+                  aria-label={STATUS_LABELS[status]}
+                >
                   <h2>
                     {STATUS_LABELS[status]} <span className="meta">{column.total}</span>
                   </h2>

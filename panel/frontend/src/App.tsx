@@ -12,12 +12,9 @@ import { ApiError, login, logout } from './api'
 import { useAuth } from './auth'
 import Board from './Board'
 import Report from './Report'
+import Servers from './Servers'
 import Timeline from './Timeline'
-
-// ponytail: stub pages; real content arrives in frontend step 5
-function Stub({ title }: { title: string }) {
-  return <h1>{title}</h1>
-}
+import Users from './Users'
 
 function Login() {
   const { me, setMe } = useAuth()
@@ -123,7 +120,10 @@ function Shell() {
 
 function RequireAdmin() {
   const { me } = useAuth()
-  return me.role === 'ADMIN' ? <Outlet /> : <Navigate to="/board" replace />
+  if (me.role !== 'ADMIN') {
+    return <p role="alert">Недостаточно прав: страница доступна только администраторам.</p>
+  }
+  return <Outlet />
 }
 
 export default function App() {
@@ -135,8 +135,8 @@ export default function App() {
         <Route path="/timeline" element={<Timeline />} />
         <Route path="/reports/:id" element={<Report />} />
         <Route element={<RequireAdmin />}>
-          <Route path="/users" element={<Stub title="Пользователи" />} />
-          <Route path="/servers" element={<Stub title="Серверы" />} />
+          <Route path="/users" element={<Users />} />
+          <Route path="/servers" element={<Servers />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/board" replace />} />

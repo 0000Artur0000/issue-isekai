@@ -228,7 +228,8 @@ export default function Report() {
   return (
     <article className="report-detail">
       <h1>
-        {report.category} <span className="badge">{STATUS_LABELS[report.status]}</span>{' '}
+        {report.category}{' '}
+        <span className={`badge status-${report.status}`}>{STATUS_LABELS[report.status]}</span>{' '}
         <span className={`badge priority-${report.priority}`}>
           {PRIORITY_LABELS[report.priority]}
         </span>

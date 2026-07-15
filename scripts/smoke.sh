@@ -84,3 +84,8 @@ echo "Smoke: read resource-pack asset"
 asset="$(curl -fsS -b "$cookies" \
   "$panel_url/api/resource-packs/$revision_id/assets/example/items/ruby.json")"
 test "$asset" = '{}'
+
+echo "Smoke: SPA index"
+curl -fsS "$panel_url/login" | grep -q 'id="root"'
+curl -fsS -b "$cookies" "$panel_url/board" | grep -q 'id="root"'
+curl -fsS -o /dev/null -D - "$panel_url/board" -b "$cookies" | grep -qi 'content-security-policy'

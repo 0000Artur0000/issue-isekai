@@ -1,15 +1,46 @@
+/* Дизайн-токены: светлая/тёмная тема через light-dark() */
 :root {
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   color-scheme: light dark;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  --bg: light-dark(#f5f6f8, #16181d);
+  --panel: light-dark(#ffffff, #1e2128);
+  --fg: light-dark(#1d2026, #e6e8ee);
+  --muted: light-dark(#5b6371, #98a1b0);
+  --border: light-dark(#d6dae1, #353b47);
+  --accent: light-dark(#3b62d4, #7d9aff);
+  --danger: light-dark(#c23434, #ff7070);
+
+  --status-NEW: light-dark(#2f6fd0, #6ea3f2);
+  --status-IN_PROGRESS: light-dark(#b07a14, #e0b04e);
+  --status-RESOLVED: light-dark(#2e7d44, #62c184);
+  --status-REJECTED: light-dark(#b03a3a, #e07070);
+  --status-DUPLICATE: light-dark(#6d5fae, #a596e0);
+
+  --priority-LOW: var(--muted);
+  --priority-NORMAL: var(--fg);
+  --priority-HIGH: light-dark(#b3641a, #eb9a52);
+  --priority-CRITICAL: var(--danger);
 }
 
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--fg);
 }
 
 :focus-visible {
-  outline: 2px solid #6b8afd;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .skip-link {
@@ -21,20 +52,23 @@ body {
   left: 8px;
   top: 8px;
   padding: 4px 8px;
-  background: Canvas;
-  z-index: 1;
+  background: var(--panel);
+  z-index: 3;
 }
 
 header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   padding: 8px 16px;
-  border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
 }
 
 nav[aria-label='Основная навигация'] {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   flex: 1;
 }
@@ -49,14 +83,30 @@ nav a[aria-current='page'] {
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 4px;
+  color: var(--accent);
 }
 
 main {
   padding: 16px;
 }
 
+button {
+  font: inherit;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .whoami {
-  opacity: 0.75;
+  color: var(--muted);
 }
 
 .login {
@@ -67,45 +117,56 @@ main {
   gap: 8px;
 }
 
-.login input {
-  padding: 6px 8px;
+input,
+select {
   font: inherit;
-}
-
-.login button {
-  margin-top: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--fg);
 }
 
 [role='alert'] {
-  color: #d43d3d;
-  margin: 0;
+  color: var(--danger);
+  margin: 4px 0;
 }
 
+.mono {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+}
+
+/* Фильтры и формы-строки */
 .filters {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
   margin-bottom: 16px;
 }
 
-.filters input,
-.filters select,
-.filters button {
-  font: inherit;
-  padding: 4px 8px;
-}
-
+/* Kanban */
 .board {
   display: flex;
   gap: 12px;
   align-items: flex-start;
   overflow-x: auto;
+  padding-bottom: 8px;
 }
 
 .column {
   flex: 1;
   min-width: 240px;
+  border-top: 3px solid var(--border);
+  padding-top: 6px;
 }
+
+.column.status-NEW { border-top-color: var(--status-NEW); }
+.column.status-IN_PROGRESS { border-top-color: var(--status-IN_PROGRESS); }
+.column.status-RESOLVED { border-top-color: var(--status-RESOLVED); }
+.column.status-REJECTED { border-top-color: var(--status-REJECTED); }
+.column.status-DUPLICATE { border-top-color: var(--status-DUPLICATE); }
 
 .column h2 {
   font-size: 16px;
@@ -120,10 +181,10 @@ main {
 }
 
 .card {
-  border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 8px 10px;
-  background: Canvas;
+  background: var(--panel);
 }
 
 .card header {
@@ -132,6 +193,7 @@ main {
   gap: 8px;
   border: none;
   padding: 0;
+  background: none;
 }
 
 .card .snippet {
@@ -142,20 +204,28 @@ main {
 .meta {
   margin: 2px 0;
   font-size: 13px;
-  opacity: 0.75;
+  color: var(--muted);
 }
 
 .badge {
   font-size: 12px;
   white-space: nowrap;
+  border: 1px solid currentcolor;
+  border-radius: 10px;
+  padding: 1px 8px;
+  align-self: center;
 }
 
-.badge.priority-HIGH,
-.badge.priority-CRITICAL {
-  color: #d43d3d;
-  opacity: 1;
-}
+.badge.priority-LOW { color: var(--priority-LOW); }
+.badge.priority-HIGH { color: var(--priority-HIGH); }
+.badge.priority-CRITICAL { color: var(--priority-CRITICAL); }
+.badge.status-NEW { color: var(--status-NEW); }
+.badge.status-IN_PROGRESS { color: var(--status-IN_PROGRESS); }
+.badge.status-RESOLVED { color: var(--status-RESOLVED); }
+.badge.status-REJECTED { color: var(--status-REJECTED); }
+.badge.status-DUPLICATE { color: var(--status-DUPLICATE); }
 
+/* Timeline */
 .timeline {
   max-width: 640px;
 }
@@ -169,6 +239,7 @@ main {
   margin: 20px 0 8px;
 }
 
+/* Detail */
 .report-detail {
   max-width: 720px;
 }
@@ -216,8 +287,9 @@ main {
   align-items: end;
   margin: 16px 0;
   padding: 12px;
-  border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+  border: 1px solid var(--border);
   border-radius: 6px;
+  background: var(--panel);
 }
 
 .workflow label {
@@ -227,16 +299,11 @@ main {
   font-size: 13px;
 }
 
-.workflow input,
-.workflow select {
-  font: inherit;
-  padding: 4px 8px;
-}
-
 .audit {
   padding-left: 20px;
 }
 
+/* Инвентарь */
 .inv-grid {
   display: grid;
   grid-template-columns: repeat(9, 40px);
@@ -252,15 +319,14 @@ main {
   position: relative;
   width: 40px;
   height: 40px;
-  border: 1px solid color-mix(in srgb, CanvasText 35%, transparent);
+  border: 1px solid var(--border);
   border-radius: 3px;
-  background: color-mix(in srgb, CanvasText 8%, Canvas);
+  background: light-dark(#e9ebef, #14161a);
   padding: 0;
-  font: inherit;
 }
 
 .inv-slot.selected {
-  outline: 2px solid #d4a53d;
+  outline: 2px solid var(--status-IN_PROGRESS);
   outline-offset: 1px;
 }
 
@@ -272,7 +338,7 @@ main {
 
 .item-fallback {
   font-size: 12px;
-  opacity: 0.8;
+  color: var(--muted);
 }
 
 .inv-amount {
@@ -292,9 +358,9 @@ main {
   max-width: 260px;
   text-align: left;
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, CanvasText 35%, transparent);
+  border: 1px solid var(--border);
   border-radius: 4px;
-  background: Canvas;
+  background: var(--panel);
   box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
 }
 
@@ -313,10 +379,105 @@ main {
 }
 
 .tooltip-enchant {
-  color: #8888d4;
+  color: var(--status-DUPLICATE);
 }
 
 .tooltip-model {
-  opacity: 0.6;
+  color: var(--muted);
   font-size: 12px;
+}
+
+/* Таблицы админки */
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+th,
+td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hashes {
+  overflow-wrap: anywhere;
+  max-width: 320px;
+}
+
+.api-key {
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  background: var(--panel);
+}
+
+.api-key p {
+  overflow-wrap: anywhere;
+}
+
+/* Брейкпоинты: 1024 / 720 / 480 */
+@media (max-width: 1024px) {
+  .column {
+    min-width: 220px;
+  }
+}
+
+@media (max-width: 720px) {
+  main {
+    padding: 12px;
+  }
+
+  .workflow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .description iframe {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  main {
+    padding: 8px;
+  }
+
+  header {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .inv-grid {
+    grid-template-columns: repeat(9, 34px);
+  }
+
+  .inv-slot {
+    width: 34px;
+    height: 34px;
+  }
+
+  .item-icon {
+    width: 28px;
+    height: 28px;
+  }
 }

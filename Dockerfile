@@ -3,6 +3,8 @@ FROM eclipse-temurin:25-jdk-alpine AS java25
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /workspace
 COPY --from=java25 /opt/java/openjdk /opt/java25/openjdk
+# Node 22 для frontend-сборки внутри Gradle (npmCi/npmBuild)
+COPY --from=node:22-alpine /usr/local /usr/local
 COPY . .
 RUN ./gradlew :panel:bootJar -Porg.gradle.java.installations.paths=/opt/java25/openjdk --no-daemon
 

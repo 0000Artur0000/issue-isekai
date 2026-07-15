@@ -23,6 +23,11 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm test
+        working-directory: panel/frontend
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew clean check :paper-plugin:jar :panel:bootJar -Porg.gradle.java.installations.paths="$JDK25_HOME" --no-daemon
       - run: docker compose up -d --build --wait
