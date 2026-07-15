@@ -29,6 +29,9 @@ public class BootstrapAdmin implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (args.getNonOptionArgs().contains("import-vanilla-assets")) {
+            return;
+        }
         UserAccountRepository repository = repositories.getIfAvailable();
         if (repository == null || repository.count() != 0) {
             return;

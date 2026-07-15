@@ -71,7 +71,7 @@ public class ServerService {
     private ServerInstance required(UUID serverId) {
         return repository()
                 .findById(serverId)
-                .orElseThrow(() -> new IllegalArgumentException("Server not found"));
+                .orElseThrow(ServerNotFoundException::new);
     }
 
     private ServerInstanceRepository repository() {
@@ -102,6 +102,12 @@ public class ServerService {
     }
 
     public record Credentials(UUID serverId, String name, String apiKey) {}
+
+    public static final class ServerNotFoundException extends IllegalArgumentException {
+        public ServerNotFoundException() {
+            super("Server not found");
+        }
+    }
 
     private record Key(String value, byte[] hash) {}
 }

@@ -9,6 +9,10 @@ spring:
     deserialization:
       fail-on-unknown-properties: true
     time-zone: UTC
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 101MB
   jpa:
     hibernate:
       ddl-auto: validate
@@ -34,3 +38,6 @@ telegram:
   chat-id: ${TELEGRAM_CHAT_ID:}
   api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
   poll-interval-ms: ${TELEGRAM_POLL_INTERVAL_MS:30000}
+
+resource-packs:
+  directory: ${RESOURCE_PACK_DIR:./data/resource-packs}

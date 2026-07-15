@@ -4,5 +4,6 @@
 .vscode
 **/build
 .env
+data
 *.log
 hs_err_pid*
