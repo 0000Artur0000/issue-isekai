@@ -69,23 +69,30 @@ public record CreateReportRequest(
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record InventorySnapshot(
-            @Min(1) @Max(1) int schemaVersion,
+            @Min(1) @Max(2) int schemaVersion,
             @NotBlank @Size(max = 64) String minecraftVersion,
             @NotNull @Min(0) @Max(8) Integer selectedHotbarSlot,
-            @Valid ResourcePackSnapshot resourcePack,
-            @NotNull @Size(max = 64) List<@Valid InventorySlot> slots,
+            @NotNull @Size(max = 64) List<@NotNull @Valid InventorySlot> slots,
             @Size(max = 4_194_304) String itemsNbtBase64,
-            @Pattern(regexp = "^[A-Z0-9_]{1,64}$") String captureError) {}
-
-    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public record ResourcePackSnapshot(
-            UUID id,
-            @Pattern(regexp = "^[0-9a-f]{40}$") String sha1,
-            @NotBlank @Pattern(regexp = "^[A-Z0-9_]{1,64}$") String status) {}
+            @Pattern(regexp = "^[A-Z0-9_]{1,64}$") String captureError) {
+        public InventorySnapshot {
+            if (slots != null) {
+                slots = slots.stream()
+                        .map(slot -> slot == null
+                                ? null
+                                : slot.rename(InventorySlotNames.normalize(schemaVersion, slot.slot())))
+                        .toList();
+            }
+        }
+    }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record InventorySlot(
-            @NotBlank @Size(max = 64) @Pattern(regexp = "^[a-z0-9_:-]+$") String slot,
+            @NotBlank
+                    @Pattern(
+                            regexp =
+                                    "^(?:hotbar_[0-8]|storage_(?:9|[12][0-9]|3[0-5])|boots|leggings|chestplate|helmet|offhand)$")
+                    String slot,
             @NotBlank @Size(max = 255)
                     @Pattern(regexp = "^[a-z0-9_.-]+:[a-z0-9_./-]+$")
                     String material,
@@ -97,7 +104,23 @@ public record CreateReportRequest(
             @Size(max = 255) @Pattern(regexp = "^[a-z0-9_.-]+:[a-z0-9_./-]+$")
                     String itemModel,
             @Valid CustomModelData customModelData,
-            @NotNull @Size(max = 128) List<@Valid Enchantment> enchantments) {}
+            @NotNull @Size(max = 128) List<@Valid Enchantment> enchantments) {
+        private InventorySlot rename(String normalizedSlot) {
+            return java.util.Objects.equals(slot, normalizedSlot)
+                    ? this
+                    : new InventorySlot(
+                            normalizedSlot,
+                            material,
+                            amount,
+                            name,
+                            lore,
+                            damage,
+                            maxDamage,
+                            itemModel,
+                            customModelData,
+                            enchantments);
+        }
+    }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record ItemText(

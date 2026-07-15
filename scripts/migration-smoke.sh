@@ -94,8 +94,8 @@ DECLARE
     user_one UUID := '00000000-0000-0000-0000-000000000001';
     pack_one UUID := '00000000-0000-0000-0000-000000000006';
 BEGIN
-    IF (SELECT count(*) FROM flyway_schema_history WHERE success) <> 3 THEN
-        RAISE EXCEPTION 'expected Flyway versions V1, V2 and V3';
+    IF (SELECT count(*) FROM flyway_schema_history WHERE success) <> 5 THEN
+        RAISE EXCEPTION 'expected Flyway versions V1 through V5';
     END IF;
 
     INSERT INTO report_participants (report_id, user_id) VALUES (report_one, user_one);
@@ -116,11 +116,10 @@ BEGIN
 
     INSERT INTO resource_packs (
         id, kind, server_id, display_name, minecraft_version, pack_format_min, pack_format_max,
-        resource_pack_id, sha1, content_sha256, size_bytes
+        sha1, content_sha256, size_bytes
     ) VALUES (
         pack_one, 'SERVER', server_one, 'Server pack', '26.1.2', 75, 84,
-        '30000000-0000-0000-0000-000000000006', decode(repeat('06', 20), 'hex'),
-        decode(repeat('06', 32), 'hex'), 2048
+        decode(repeat('06', 20), 'hex'), decode(repeat('06', 32), 'hex'), 2048
     );
 
     UPDATE servers SET active_resource_pack_id = pack_one WHERE id = server_one;
@@ -148,6 +147,14 @@ BEGIN
     ) VALUES (
         report_one, 1, '26.1.2', 2, '{"slots":[]}'::jsonb, decode('010203', 'hex')
     );
+
+    UPDATE report_inventories SET schema_version = 2 WHERE report_id = report_one;
+    BEGIN
+        UPDATE report_inventories SET schema_version = 3 WHERE report_id = report_one;
+        RAISE EXCEPTION 'inventory schema version 3 was accepted';
+    EXCEPTION WHEN check_violation THEN
+        NULL;
+    END;
 
     DELETE FROM reports WHERE id = report_one;
     IF EXISTS (SELECT FROM report_participants WHERE report_id = report_one)

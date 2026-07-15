@@ -3,6 +3,7 @@ package ru.arzer0.issueisekai.panel.report;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -17,6 +18,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import ru.arzer0.issueisekai.panel.api.InventorySlotNames;
 
 @Service
 public class ReportQueueService {
@@ -130,7 +132,6 @@ public class ReportQueueService {
                                ri.capture_error, ri.created_at,
                                r.resource_pack_match,
                                rp.id AS pack_revision_id, rp.display_name AS pack_name,
-                               rp.resource_pack_id AS pack_id,
                                encode(rp.sha1, 'hex') AS pack_sha1,
                                encode(rp.content_sha256, 'hex') AS pack_sha256
                         FROM report_inventories ri
@@ -421,47 +422,34 @@ public class ReportQueueService {
         } catch (JsonProcessingException exception) {
             throw new SQLException("Invalid inventory JSON", exception);
         }
+        int schemaVersion = resultSet.getInt("schema_version");
         JsonNode slots = normalized.path("slots");
         if (!slots.isArray()) {
             throw new SQLException("Inventory slots must be an array");
         }
-        JsonNode resourcePack = normalized.path("resource_pack");
+        slots.forEach(slot -> {
+            if (slot instanceof ObjectNode object) {
+                object.put(
+                        "slot",
+                        InventorySlotNames.normalize(schemaVersion, object.path("slot").asText()));
+            }
+        });
         UUID revisionId = resultSet.getObject("pack_revision_id", UUID.class);
         return new InventorySnapshot(
-                resultSet.getInt("schema_version"),
+                schemaVersion,
                 resultSet.getString("minecraft_version"),
                 resultSet.getInt("selected_hotbar_slot"),
                 slots,
-                new ResourcePackState(
-                        uuid(resourcePack.path("id")),
-                        text(resourcePack.path("sha1")),
-                        resourcePack.path("status").asText("UNKNOWN")),
                 revisionId == null
                         ? null
                         : new PackRevision(
                                 revisionId,
                                 resultSet.getString("pack_name"),
-                                resultSet.getObject("pack_id", UUID.class),
                                 resultSet.getString("pack_sha1"),
                                 resultSet.getString("pack_sha256")),
                 resultSet.getString("resource_pack_match"),
                 resultSet.getString("capture_error"),
                 instant(resultSet, "created_at"));
-    }
-
-    private static UUID uuid(JsonNode node) throws SQLException {
-        if (!node.isTextual()) {
-            return null;
-        }
-        try {
-            return UUID.fromString(node.textValue());
-        } catch (IllegalArgumentException exception) {
-            throw new SQLException("Invalid resource pack UUID", exception);
-        }
-    }
-
-    private static String text(JsonNode node) {
-        return node.isTextual() ? node.textValue() : null;
     }
 
     private List<Participant> participants(String value) throws SQLException {
@@ -593,16 +581,12 @@ public class ReportQueueService {
             String minecraftVersion,
             int selectedHotbarSlot,
             JsonNode slots,
-            ResourcePackState resourcePack,
             PackRevision packRevision,
             String packMatch,
             String captureError,
             Instant createdAt) {}
 
-    public record ResourcePackState(UUID id, String sha1, String status) {}
-
-    public record PackRevision(
-            UUID id, String name, UUID resourcePackId, String sha1, String sha256) {}
+    public record PackRevision(UUID id, String name, String sha1, String sha256) {}
 
     public static final class ReportNotFoundException extends IllegalArgumentException {
         public ReportNotFoundException() {

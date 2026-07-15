@@ -14,12 +14,10 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import ru.arzer0.issueisekai.plugin.BugReportValidator;
-import ru.arzer0.issueisekai.plugin.PluginConfig;
 import ru.arzer0.issueisekai.plugin.api.CreateReportRequest;
 import ru.arzer0.issueisekai.plugin.api.ReportJson;
 import ru.arzer0.issueisekai.plugin.dialog.BugReportDialog;
 import ru.arzer0.issueisekai.plugin.events.BugReportEvents;
-import ru.arzer0.issueisekai.plugin.events.ResourcePackStatusTracker;
 import ru.arzer0.issueisekai.plugin.queue.SubmissionQueue;
 
 public final class BugReportCommand implements CommandExecutor {
@@ -29,24 +27,18 @@ public final class BugReportCommand implements CommandExecutor {
     private final BugReportValidator validator;
     private final SubmissionQueue queue;
     private final BugReportEvents events;
-    private final PluginConfig config;
-    private final ResourcePackStatusTracker packStatuses;
 
     public BugReportCommand(
             Plugin plugin,
             BugReportDialog dialog,
             BugReportValidator validator,
             SubmissionQueue queue,
-            BugReportEvents events,
-            PluginConfig config,
-            ResourcePackStatusTracker packStatuses) {
+            BugReportEvents events) {
         this.plugin = plugin;
         this.dialog = dialog;
         this.validator = validator;
         this.queue = queue;
         this.events = events;
-        this.config = config;
-        this.packStatuses = packStatuses;
     }
 
     @Override
@@ -108,10 +100,7 @@ public final class BugReportCommand implements CommandExecutor {
                 submission,
                 InventorySnapshotCapture.capture(
                         target,
-                        packStatuses,
                         Bukkit.getMinecraftVersion(),
-                        config.resourcePackId(),
-                        config.resourcePackSha1(),
                         plugin.getLogger()));
         submission = fitBodyLimit(submission, plugin.getLogger());
         CreateReportRequest queuedSubmission = submission;
@@ -200,7 +189,6 @@ public final class BugReportCommand implements CommandExecutor {
                         inventory.schemaVersion(),
                         inventory.minecraftVersion(),
                         inventory.selectedHotbarSlot(),
-                        inventory.resourcePack(),
                         inventory.slots(),
                         null,
                         "TOO_LARGE"));
@@ -213,7 +201,6 @@ public final class BugReportCommand implements CommandExecutor {
                         inventory.schemaVersion(),
                         inventory.minecraftVersion(),
                         inventory.selectedHotbarSlot(),
-                        inventory.resourcePack(),
                         java.util.List.of(),
                         null,
                         "TOO_LARGE"));

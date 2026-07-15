@@ -15,7 +15,6 @@ type Revision = {
   minecraftVersion: string
   packFormatMin: number
   packFormatMax: number
-  resourcePackId: string
   sha1: string
   sha256: string
   sizeBytes: number
@@ -101,12 +100,6 @@ function Packs({ server }: { server: Server }) {
           defaultValue="26.1.2"
           required
         />
-        <input
-          name="resourcePackId"
-          aria-label="UUID пака сервера"
-          placeholder="UUID пака (server.properties)"
-          required
-        />
         <input name="file" type="file" accept=".zip" aria-label="ZIP пака" required />
         <button type="submit" disabled={pending}>
           Загрузить
@@ -122,7 +115,6 @@ function Packs({ server }: { server: Server }) {
               <tr>
                 <th scope="col">Название</th>
                 <th scope="col">Minecraft / формат</th>
-                <th scope="col">UUID пака</th>
                 <th scope="col">SHA-1 / SHA-256</th>
                 <th scope="col">Загружена</th>
                 <th scope="col">Активна</th>
@@ -138,7 +130,6 @@ function Packs({ server }: { server: Server }) {
                       ? `–${revision.packFormatMax}`
                       : ''}
                   </td>
-                  <td className="mono">{revision.resourcePackId}</td>
                   <td className="mono hashes">
                     {revision.sha1}
                     <br />

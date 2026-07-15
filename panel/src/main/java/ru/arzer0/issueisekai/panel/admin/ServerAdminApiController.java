@@ -71,9 +71,8 @@ public class ServerAdminApiController {
             @PathVariable UUID id,
             @RequestParam String displayName,
             @RequestParam String minecraftVersion,
-            @RequestParam UUID resourcePackId,
             @RequestParam MultipartFile file) {
-        return resourcePacks.upload(id, displayName, minecraftVersion, resourcePackId, file);
+        return resourcePacks.upload(id, displayName, minecraftVersion, file);
     }
 
     @PutMapping("/{id}/resource-packs/{revisionId}/active")

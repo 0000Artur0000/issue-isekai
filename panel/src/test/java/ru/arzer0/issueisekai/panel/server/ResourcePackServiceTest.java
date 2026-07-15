@@ -58,15 +58,14 @@ class ResourcePackServiceTest {
         when(database.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(1);
         var service = new ResourcePackService(databases, new ObjectMapper(), directory.toString());
         UUID serverId = UUID.randomUUID();
-        UUID packId = UUID.randomUUID();
         byte[] zip = zip("assets/example/items/ruby.json", "{}");
         var upload = new MockMultipartFile("file", "pack.zip", "application/zip", zip);
 
         ResourcePackService.Revision first =
-                service.upload(serverId, "Lobby pack", "26.1.2", packId, upload);
+                service.upload(serverId, "Lobby pack", "26.1.2", upload);
         stored.set(first);
         ResourcePackService.Revision duplicate =
-                service.upload(serverId, "Renamed", "26.1.2", packId, upload);
+                service.upload(serverId, "Renamed", "26.1.2", upload);
 
         assertEquals(first, duplicate);
         assertEquals(40, first.sha1().length());
@@ -79,7 +78,7 @@ class ResourcePackServiceTest {
                 "file", "unsafe.zip", "application/zip", zip("../escape.json", "{}"));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.upload(serverId, "Unsafe", "26.1.2", packId, unsafe));
+                () -> service.upload(serverId, "Unsafe", "26.1.2", unsafe));
         assertFalse(Files.exists(directory.resolve("escape.json")));
 
         var incompatible = new MockMultipartFile(
@@ -89,8 +88,7 @@ class ResourcePackServiceTest {
                 zip("assets/example/items/ruby.json", "{}", 74));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.upload(
-                        serverId, "Old format", "26.1.2", packId, incompatible));
+                () -> service.upload(serverId, "Old format", "26.1.2", incompatible));
     }
 
     @Test
@@ -145,13 +143,11 @@ class ResourcePackServiceTest {
         when(database.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(0);
         var service = new ResourcePackService(databases, new ObjectMapper(), directory.toString());
         UUID serverId = UUID.randomUUID();
-        UUID packId = UUID.randomUUID();
-
-        assertRejected(service, serverId, packId, file("text/plain", zip("assets/example/item.json", "{}")));
-        assertRejected(service, serverId, packId, file("application/zip", rawZip("pack.mcmeta", "not-json")));
-        assertRejected(service, serverId, packId, file("application/zip", zip("/absolute.json", "{}")));
-        assertRejected(service, serverId, packId, file("application/zip", duplicateEntryZip()));
-        assertRejected(service, serverId, packId, file("application/zip", zip("assets/example/bomb.json", "0".repeat(1_048_576))));
+        assertRejected(service, serverId, file("text/plain", zip("assets/example/item.json", "{}")));
+        assertRejected(service, serverId, file("application/zip", rawZip("pack.mcmeta", "not-json")));
+        assertRejected(service, serverId, file("application/zip", zip("/absolute.json", "{}")));
+        assertRejected(service, serverId, file("application/zip", duplicateEntryZip()));
+        assertRejected(service, serverId, file("application/zip", zip("assets/example/bomb.json", "0".repeat(1_048_576))));
         assertThrows(
                 ResourcePackService.RevisionNotFoundException.class,
                 () -> service.activate(serverId, UUID.randomUUID()));
@@ -213,11 +209,10 @@ class ResourcePackServiceTest {
     private static void assertRejected(
             ResourcePackService service,
             UUID serverId,
-            UUID packId,
             MockMultipartFile file) {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.upload(serverId, "Invalid", "26.1.2", packId, file));
+                () -> service.upload(serverId, "Invalid", "26.1.2", file));
     }
 
     private static void entry(ZipOutputStream zip, String name, String value) throws IOException {

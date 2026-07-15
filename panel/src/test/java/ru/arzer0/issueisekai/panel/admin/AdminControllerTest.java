@@ -120,7 +120,6 @@ class AdminControllerTest {
     void exposesServerRestWithoutHashesAndKeysOnlyOnce() throws Exception {
         UUID serverId = UUID.randomUUID();
         UUID revisionId = UUID.randomUUID();
-        UUID packId = UUID.randomUUID();
         Instant now = Instant.parse("2026-07-15T00:00:00Z");
         ServerInstance server = mock(ServerInstance.class);
         when(server.getId()).thenReturn(serverId);
@@ -139,7 +138,6 @@ class AdminControllerTest {
                 "26.1.2",
                 75,
                 76,
-                packId,
                 "0123456789012345678901234567890123456789",
                 "abcdef",
                 128,
@@ -148,7 +146,7 @@ class AdminControllerTest {
         when(resourcePacks.list(serverId)).thenReturn(List.of(revision));
         var file = new MockMultipartFile(
                 "file", "pack.zip", "application/zip", new byte[] {1, 2, 3});
-        when(resourcePacks.upload(serverId, "Lobby pack", "26.1.2", packId, file))
+        when(resourcePacks.upload(serverId, "Lobby pack", "26.1.2", file))
                 .thenReturn(revision);
         var admin = user("admin").roles("ADMIN");
 
@@ -182,7 +180,6 @@ class AdminControllerTest {
                         .file(file)
                         .param("displayName", "Lobby pack")
                         .param("minecraftVersion", "26.1.2")
-                        .param("resourcePackId", packId.toString())
                         .with(admin)
                         .with(csrf()))
                 .andExpect(status().isCreated())

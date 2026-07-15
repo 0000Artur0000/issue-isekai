@@ -12,14 +12,9 @@
   "reported_at": "2026-07-13T10:00:00Z",
   "paper_version": "26.1.2",
   "inventory": {
-    "schema_version": 1,
+    "schema_version": 2,
     "minecraft_version": "26.1.2",
     "selected_hotbar_slot": 2,
-    "resource_pack": {
-      "id": "44444444-4444-4444-4444-444444444444",
-      "sha1": "0123456789abcdef0123456789abcdef01234567",
-      "status": "SUCCESSFULLY_LOADED"
-    },
     "slots": [
       {
         "slot": "hotbar_2",

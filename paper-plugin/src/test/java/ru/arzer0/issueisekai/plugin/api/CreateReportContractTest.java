@@ -55,7 +55,7 @@ class CreateReportContractTest {
         }
 
         CreateReportRequest request = ReportJson.read(fixture, CreateReportRequest.class);
-        assertEquals(1, request.inventory().schemaVersion());
+        assertEquals(2, request.inventory().schemaVersion());
         assertEquals("hotbar_2", request.inventory().slots().getFirst().slot());
         assertEquals(
                 JsonParser.parseString(fixture),

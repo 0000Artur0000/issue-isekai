@@ -79,14 +79,10 @@ public class ResourcePackService {
             UUID serverId,
             String displayName,
             String minecraftVersion,
-            UUID resourcePackId,
             MultipartFile file) {
         requireServer(serverId);
         String name = normalize(displayName, 100, "Display name");
         String version = normalize(minecraftVersion, 64, "Minecraft version");
-        if (resourcePackId == null) {
-            throw new IllegalArgumentException("Resource pack UUID is required");
-        }
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Resource pack ZIP is required");
         }
@@ -115,12 +111,11 @@ public class ResourcePackService {
                     """
                             INSERT INTO resource_packs (
                                 id, kind, server_id, display_name, minecraft_version,
-                                pack_format_min, pack_format_max, resource_pack_id,
-                                sha1, content_sha256, size_bytes, created_at
+                                pack_format_min, pack_format_max, sha1,
+                                content_sha256, size_bytes, created_at
                             ) VALUES (
                                 :id, 'SERVER', :serverId, :displayName, :minecraftVersion,
-                                :formatMin, :formatMax, :resourcePackId,
-                                :sha1, :sha256, :size, :createdAt
+                                :formatMin, :formatMax, :sha1, :sha256, :size, :createdAt
                             )
                             ON CONFLICT DO NOTHING
                             """,
@@ -131,7 +126,6 @@ public class ResourcePackService {
                             .addValue("minecraftVersion", version)
                             .addValue("formatMin", format.minimum())
                             .addValue("formatMax", format.maximum())
-                            .addValue("resourcePackId", resourcePackId)
                             .addValue("sha1", hashes.sha1())
                             .addValue("sha256", hashes.sha256())
                             .addValue("size", hashes.size())
@@ -151,7 +145,6 @@ public class ResourcePackService {
                     version,
                     format.minimum(),
                     format.maximum(),
-                    resourcePackId,
                     hashes.sha1Hex(),
                     hashes.sha256Hex(),
                     hashes.size(),
@@ -245,7 +238,6 @@ public class ResourcePackService {
                     version,
                     format.minimum(),
                     format.maximum(),
-                    null,
                     null,
                     hashes.sha256Hex(),
                     hashes.size(),
@@ -662,7 +654,6 @@ public class ResourcePackService {
                 resultSet.getString("minecraft_version"),
                 resultSet.getInt("pack_format_min"),
                 resultSet.getInt("pack_format_max"),
-                resultSet.getObject("resource_pack_id", UUID.class),
                 sha1 == null ? null : HexFormat.of().formatHex(sha1),
                 HexFormat.of().formatHex(resultSet.getBytes("content_sha256")),
                 resultSet.getLong("size_bytes"),
@@ -678,7 +669,6 @@ public class ResourcePackService {
             String minecraftVersion,
             int packFormatMin,
             int packFormatMax,
-            UUID resourcePackId,
             String sha1,
             String sha256,
             long sizeBytes,

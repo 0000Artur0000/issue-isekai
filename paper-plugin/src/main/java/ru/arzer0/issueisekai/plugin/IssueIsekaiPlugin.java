@@ -8,7 +8,6 @@ import ru.arzer0.issueisekai.plugin.delivery.DeliveryWorker;
 import ru.arzer0.issueisekai.plugin.denizen.DenizenBridge;
 import ru.arzer0.issueisekai.plugin.dialog.BugReportDialog;
 import ru.arzer0.issueisekai.plugin.events.BugReportEvents;
-import ru.arzer0.issueisekai.plugin.events.ResourcePackStatusTracker;
 import ru.arzer0.issueisekai.plugin.http.ReportClient;
 import ru.arzer0.issueisekai.plugin.queue.SubmissionQueue;
 
@@ -29,8 +28,6 @@ public final class IssueIsekaiPlugin extends JavaPlugin {
             reportEvents = DenizenBridge.register();
             getLogger().info("Denizen bridge enabled");
         }
-        var packStatuses = new ResourcePackStatusTracker();
-        getServer().getPluginManager().registerEvents(packStatuses, this);
         submissionQueue = new SubmissionQueue(getDataFolder().toPath(), pluginConfig.maxQueuedReports());
         submissionQueue.initialize().exceptionally(error -> {
             getLogger().log(Level.SEVERE, "Could not initialize submission queue", error);
@@ -41,9 +38,7 @@ public final class IssueIsekaiPlugin extends JavaPlugin {
                 bugReportDialog,
                 validator,
                 submissionQueue,
-                reportEvents,
-                pluginConfig,
-                packStatuses);
+                reportEvents);
         Objects.requireNonNull(getCommand("bugreport")).setExecutor(bugReportCommand);
         if (reportEvents instanceof DenizenBridge bridge) {
             bridge.registerCommand(bugReportCommand);

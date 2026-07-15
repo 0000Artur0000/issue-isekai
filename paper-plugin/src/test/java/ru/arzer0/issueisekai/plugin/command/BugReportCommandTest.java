@@ -60,7 +60,6 @@ class BugReportCommandTest {
                 1,
                 "26.1.2",
                 2,
-                null,
                 List.of(),
                 "x".repeat(4 * 1024 * 1024),
                 null);

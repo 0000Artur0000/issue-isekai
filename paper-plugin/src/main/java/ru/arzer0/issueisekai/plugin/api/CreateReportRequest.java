@@ -51,7 +51,6 @@ public record CreateReportRequest(
             int schemaVersion,
             String minecraftVersion,
             Integer selectedHotbarSlot,
-            ResourcePackSnapshot resourcePack,
             List<InventorySlot> slots,
             String itemsNbtBase64,
             String captureError) {
@@ -59,8 +58,6 @@ public record CreateReportRequest(
             slots = List.copyOf(slots);
         }
     }
-
-    public record ResourcePackSnapshot(UUID id, String sha1, String status) {}
 
     public record InventorySlot(
             String slot,

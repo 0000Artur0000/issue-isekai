@@ -61,7 +61,7 @@ class ReportIngestServiceTest {
     }
 
     @Test
-    void pinsExactPackAndStoresInventoryWithoutBase64InJson() throws IOException {
+    void pinsActivePackAndStoresInventoryWithoutBase64InJson() throws IOException {
         UUID serverId = UUID.randomUUID();
         UUID reportId = UUID.randomUUID();
         UUID revisionId = UUID.randomUUID();
@@ -72,16 +72,13 @@ class ReportIngestServiceTest {
                 .thenAnswer(invocation -> {
                     String sql = invocation.getArgument(0);
                     if (sql.contains("active_resource_pack_id")) {
-                        return List.of();
-                    }
-                    if (sql.contains("FROM resource_packs")) {
                         return List.of(revisionId);
                     }
                     if (sql.contains("INSERT INTO reports")) {
                         Object[] arguments = Arrays.copyOfRange(
                                 invocation.getArguments(), 2, invocation.getArguments().length);
                         assertEquals(revisionId, arguments[14]);
-                        assertEquals("EXACT", arguments[15]);
+                        assertEquals("ASSUMED", arguments[15]);
                         return List.of(reportId);
                     }
                     return List.of();

@@ -1,0 +1,88 @@
+[
+  {
+    "name": "vanilla-2d",
+    "item": "minecraft:diamond",
+    "item_model": "minecraft:diamond",
+    "definition": {
+      "model": {
+        "type": "minecraft:model",
+        "model": "minecraft:item/diamond"
+      }
+    },
+    "models": {
+      "minecraft:item/generated": {
+        "parent": "builtin/generated"
+      },
+      "minecraft:item/diamond": {
+        "parent": "minecraft:item/generated",
+        "textures": {"layer0": "minecraft:item/diamond"}
+      }
+    },
+    "expected_quads": 1,
+    "expected_texture": "minecraft:item/diamond"
+  },
+  {
+    "name": "custom-2d",
+    "item": "minecraft:diamond_pickaxe",
+    "item_model": "example:ruby_pickaxe",
+    "definition": {
+      "model": {
+        "type": "minecraft:model",
+        "model": "example:item/ruby_pickaxe"
+      }
+    },
+    "models": {
+      "minecraft:item/generated": {
+        "parent": "builtin/generated"
+      },
+      "example:item/ruby_pickaxe": {
+        "parent": "minecraft:item/generated",
+        "textures": {"layer0": "example:item/ruby_pickaxe"}
+      }
+    },
+    "expected_quads": 1,
+    "expected_texture": "example:item/ruby_pickaxe"
+  },
+  {
+    "name": "custom-3d-parent-chain",
+    "item": "minecraft:diamond_pickaxe",
+    "item_model": "example:ruby_cube",
+    "definition": {
+      "model": {
+        "type": "minecraft:model",
+        "model": "example:item/ruby_cube_gui"
+      }
+    },
+    "models": {
+      "example:item/ruby_cube_base": {
+        "textures": {"all": "example:item/ruby_cube"},
+        "elements": [
+          {
+            "from": [0, 0, 0],
+            "to": [16, 16, 16],
+            "faces": {
+              "north": {"texture": "#all"},
+              "south": {"texture": "#all"},
+              "east": {"texture": "#all"},
+              "west": {"texture": "#all"},
+              "up": {"texture": "#all"},
+              "down": {"texture": "#all"}
+            }
+          }
+        ]
+      },
+      "example:item/ruby_cube_gui": {
+        "parent": "example:item/ruby_cube_base",
+        "display": {
+          "gui": {
+            "rotation": [30, 225, 0],
+            "scale": [0.625, 0.625, 0.625]
+          }
+        }
+      }
+    },
+    "expected_quads": 6,
+    "expected_texture": "example:item/ruby_cube",
+    "expected_gui_transform": true
+  }
+]

@@ -6,7 +6,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.regex.Pattern;
 import org.bukkit.configuration.Configuration;
 
@@ -18,11 +17,8 @@ public record PluginConfig(
         Duration retryInterval,
         int maxDeliveriesPerRun,
         int maxQueuedReports,
-        Duration cooldown,
-        UUID resourcePackId,
-        String resourcePackSha1) {
+        Duration cooldown) {
     private static final Pattern CATEGORY_ID = Pattern.compile("[a-z0-9][a-z0-9_-]{0,31}");
-    private static final Pattern SHA1 = Pattern.compile("[0-9a-f]{40}");
 
     public PluginConfig {
         categories = List.copyOf(categories);
@@ -37,24 +33,6 @@ public record PluginConfig(
         int maxDeliveries = positive(config.getInt("max-deliveries-per-run"), "max-deliveries-per-run");
         int maxQueued = positive(config.getInt("max-queued-reports"), "max-queued-reports");
         int cooldown = positive(config.getInt("cooldown-seconds"), "cooldown-seconds");
-        String packIdText = optional(config.getString("resource-pack-id"));
-        String packSha1 = optional(config.getString("resource-pack-sha1"));
-        if ((packIdText == null) != (packSha1 == null)) {
-            throw new IllegalArgumentException(
-                    "resource-pack-id and resource-pack-sha1 must be configured together");
-        }
-        UUID packId = null;
-        if (packIdText != null) {
-            try {
-                packId = UUID.fromString(packIdText);
-            } catch (IllegalArgumentException exception) {
-                throw new IllegalArgumentException("resource-pack-id must be a UUID", exception);
-            }
-            packSha1 = packSha1.toLowerCase(java.util.Locale.ROOT);
-            if (!SHA1.matcher(packSha1).matches()) {
-                throw new IllegalArgumentException("resource-pack-sha1 must contain 40 hex characters");
-            }
-        }
         return new PluginConfig(
                 panelUrl,
                 apiKey,
@@ -63,9 +41,7 @@ public record PluginConfig(
                 Duration.ofSeconds(retryInterval),
                 maxDeliveries,
                 maxQueued,
-                Duration.ofSeconds(cooldown),
-                packId,
-                packSha1);
+                Duration.ofSeconds(cooldown));
     }
 
     private static URI panelUrl(String value) {
@@ -109,10 +85,6 @@ public record PluginConfig(
             throw new IllegalArgumentException(name + " must not be blank");
         }
         return value.trim();
-    }
-
-    private static String optional(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private static int positive(int value, String name) {

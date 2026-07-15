@@ -102,7 +102,6 @@ class DeliveryWorkerTest {
                         1,
                         "26.1.2",
                         2,
-                        null,
                         java.util.List.of(),
                         "AQID",
                         null));

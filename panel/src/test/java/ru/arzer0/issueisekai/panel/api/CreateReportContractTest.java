@@ -10,6 +10,9 @@ import jakarta.validation.Validation;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -60,16 +63,60 @@ class CreateReportContractTest {
 
         CreateReportRequest request = objectMapper.readValue(fixture, CreateReportRequest.class);
         assertNotNull(request.inventory());
-        assertEquals(1, request.inventory().schemaVersion());
+        assertEquals(2, request.inventory().schemaVersion());
         assertEquals("hotbar_2", request.inventory().slots().getFirst().slot());
         assertEquals("example:ruby_pickaxe", request.inventory().slots().getFirst().itemModel());
 
         try (var factory = Validation.buildDefaultValidatorFactory()) {
             assertTrue(factory.getValidator().validate(request).isEmpty());
             CreateReportRequest unsupported = objectMapper.readValue(
-                    fixture.replace("\"schema_version\": 1", "\"schema_version\": 2"),
+                    fixture.replace("\"schema_version\": 2", "\"schema_version\": 3"),
                     CreateReportRequest.class);
             assertFalse(factory.getValidator().validate(unsupported).isEmpty());
+
+            CreateReportRequest legacy = objectMapper.readValue(
+                    fixture.replace("\"schema_version\": 2", "\"schema_version\": 1")
+                            .replace("\"hotbar_2\"", "\"armor_head\""),
+                    CreateReportRequest.class);
+            assertEquals("helmet", legacy.inventory().slots().getFirst().slot());
+            assertTrue(factory.getValidator().validate(legacy).isEmpty());
         }
+    }
+
+    @Test
+    void validatesEverySharedLogicalSlotAndRejectsLegacyNames() throws IOException {
+        List<String> slots = new ArrayList<>();
+        try (var input =
+                Objects.requireNonNull(getClass().getResourceAsStream("/inventory-slots.json"))) {
+            var fixture = objectMapper.readTree(input);
+            for (String group : List.of("storage_contents", "armor_contents", "extra_contents")) {
+                fixture.get(group).forEach(slot -> slots.add(slot.asText()));
+            }
+        }
+
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var validator = factory.getValidator();
+            for (String slot : slots) {
+                assertTrue(validator.validate(inventorySlot(slot)).isEmpty(), slot);
+            }
+            assertEquals(41, slots.size());
+            for (String legacy : List.of("storage_0", "armor_head", "off_hand")) {
+                assertFalse(validator.validate(inventorySlot(legacy)).isEmpty(), legacy);
+            }
+        }
+    }
+
+    private static CreateReportRequest.InventorySlot inventorySlot(String slot) {
+        return new CreateReportRequest.InventorySlot(
+                slot,
+                "minecraft:stone",
+                1,
+                new CreateReportRequest.ItemText("Stone", Map.of()),
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                List.of());
     }
 }

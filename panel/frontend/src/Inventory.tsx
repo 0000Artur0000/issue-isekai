@@ -1,5 +1,12 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { componentClasses } from './adventure.mjs'
 import { api } from './api'
+import {
+  EQUIPMENT_SLOTS,
+  HOTBAR_SLOTS,
+  STORAGE_SLOTS,
+  isKnownSlot,
+} from './inventory-slots.mjs'
 import { resolveItemDefinition } from './items.mjs'
 
 export type Slot = {
@@ -25,32 +32,12 @@ type Snapshot = {
   minecraftVersion: string
   selectedHotbarSlot: number
   slots: Slot[]
-  resourcePack: { id: string | null; sha1: string | null; status: string } | null
   packRevision: { id: string } | null
   packMatch: string | null
   captureError: string | null
 }
 
 // --- Adventure component -> React nodes (безопасно, без HTML) ---
-
-const NAMED_COLORS: Record<string, string> = {
-  black: '#000000',
-  dark_blue: '#0000aa',
-  dark_green: '#00aa00',
-  dark_aqua: '#00aaaa',
-  dark_red: '#aa0000',
-  dark_purple: '#aa00aa',
-  gold: '#ffaa00',
-  gray: '#aaaaaa',
-  dark_gray: '#555555',
-  blue: '#5555ff',
-  green: '#55ff55',
-  aqua: '#55ffff',
-  red: '#ff5555',
-  light_purple: '#ff55ff',
-  yellow: '#ffff55',
-  white: '#ffffff',
-}
 
 type Component = {
   text?: string
@@ -67,19 +54,9 @@ function renderComponent(node: unknown, key: number): ReactNode {
   if (Array.isArray(node)) return node.map(renderComponent)
   if (node === null || typeof node !== 'object') return null
   const component = node as Component
-  const style: CSSProperties = {}
-  if (component.color) style.color = NAMED_COLORS[component.color] ?? component.color
-  if (component.bold) style.fontWeight = 'bold'
-  if (component.italic) style.fontStyle = 'italic'
-  const decorations = [
-    component.underlined ? 'underline' : '',
-    component.strikethrough ? 'line-through' : '',
-  ]
-    .join(' ')
-    .trim()
-  if (decorations) style.textDecoration = decorations
+  const className = componentClasses(component)
   return (
-    <span key={key} style={style}>
+    <span key={key} className={className || undefined}>
       {component.text}
       {(component.extra ?? []).map(renderComponent)}
     </span>
@@ -123,8 +100,8 @@ async function modelIcon(revision: string, modelKey: string): Promise<Icon> {
       return { reason: `модель ${current} не найдена в паке` }
     }
     if (model.elements) {
-      // ponytail: 3D geometry ждёт renderer proof (см. RENDERER_DECISION.md)
-      return { reason: '3D-модель: рендерер подключается после proof' }
+      // ponytail: mesh proof пройден, WebGL pixel proof ждёт реальный pack (RENDERER_PROOF.md)
+      return { reason: '3D-модель: нужен WebGL proof на реальном pack' }
     }
     textures = { ...model.textures, ...textures }
     current = model.parent
@@ -268,9 +245,6 @@ function SlotCell({
   )
 }
 
-const ARMOR_ROW = ['helmet', 'chestplate', 'leggings', 'boots', 'offhand']
-const KNOWN = new RegExp(`^(hotbar_[0-8]|storage_(9|1[0-9]|2[0-9]|3[0-5])|${ARMOR_ROW.join('|')})$`)
-
 export default function Inventory({ reportId }: { reportId: string }) {
   const [snapshot, setSnapshot] = useState<Snapshot | 'none' | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -296,14 +270,10 @@ export default function Inventory({ reportId }: { reportId: string }) {
 
   const bySlot = new Map(snapshot.slots.map((slot) => [slot.slot, slot]))
   const revision = snapshot.packRevision?.id ?? null
-  const extras = snapshot.slots.filter((slot) => !KNOWN.test(slot.slot))
+  const extras = snapshot.slots.filter((slot) => !isKnownSlot(slot.slot))
   const packNote = !revision
-    ? snapshot.resourcePack?.status === 'DECLINED'
-      ? 'Игрок отклонил resource pack — иконки custom-предметов недоступны.'
-      : 'Ревизия resource pack не привязана — иконки показаны заглушками.'
-    : snapshot.packMatch === 'MISMATCH'
-      ? 'Pack игрока не совпал с загруженной ревизией — иконки могут отличаться.'
-      : null
+    ? 'Активный resource pack не выбран — custom-модели показаны заглушками.'
+    : null
 
   return (
     <section aria-label="Инвентарь игрока">
@@ -311,22 +281,22 @@ export default function Inventory({ reportId }: { reportId: string }) {
       {snapshot.captureError && <p role="alert">Снимок неполный: {snapshot.captureError}</p>}
       {packNote && <p className="meta">{packNote}</p>}
       <div className="inv-grid" aria-label="Основной инвентарь">
-        {Array.from({ length: 27 }, (_, index) => (
-          <SlotCell key={index} revision={revision} slot={bySlot.get(`storage_${index + 9}`)} />
+        {STORAGE_SLOTS.map((name) => (
+          <SlotCell key={name} revision={revision} slot={bySlot.get(name)} />
         ))}
       </div>
       <div className="inv-grid inv-hotbar" aria-label="Хотбар">
-        {Array.from({ length: 9 }, (_, index) => (
+        {HOTBAR_SLOTS.map((name, index) => (
           <SlotCell
-            key={index}
+            key={name}
             revision={revision}
-            slot={bySlot.get(`hotbar_${index}`)}
+            slot={bySlot.get(name)}
             selected={index === snapshot.selectedHotbarSlot}
           />
         ))}
       </div>
       <div className="inv-grid inv-armor" aria-label="Броня и вторая рука">
-        {ARMOR_ROW.map((name) => (
+        {EQUIPMENT_SLOTS.map((name) => (
           <SlotCell key={name} revision={revision} slot={bySlot.get(name)} />
         ))}
       </div>

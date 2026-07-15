@@ -387,6 +387,28 @@ select {
   font-size: 12px;
 }
 
+.mc-color-black { color: #000; }
+.mc-color-dark_blue { color: #0000aa; }
+.mc-color-dark_green { color: #00aa00; }
+.mc-color-dark_aqua { color: #00aaaa; }
+.mc-color-dark_red { color: #aa0000; }
+.mc-color-dark_purple { color: #aa00aa; }
+.mc-color-gold { color: #ffaa00; }
+.mc-color-gray { color: #aaaaaa; }
+.mc-color-dark_gray { color: #555555; }
+.mc-color-blue { color: #5555ff; }
+.mc-color-green { color: #55ff55; }
+.mc-color-aqua { color: #55ffff; }
+.mc-color-red { color: #ff5555; }
+.mc-color-light_purple { color: #ff55ff; }
+.mc-color-yellow { color: #ffff55; }
+.mc-color-white { color: #fff; }
+.mc-bold { font-weight: 700; }
+.mc-italic { font-style: italic; }
+.mc-underlined { text-decoration-line: underline; }
+.mc-strikethrough { text-decoration-line: line-through; }
+.mc-underlined.mc-strikethrough { text-decoration-line: underline line-through; }
+
 /* Таблицы админки */
 .table-scroll {
   overflow-x: auto;

@@ -4,9 +4,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.kyori.adventure.text.Component;
@@ -16,11 +14,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.packs.ResourcePack;
 import org.bukkit.entity.Player;
 import ru.arzer0.issueisekai.plugin.api.CreateReportRequest;
 import ru.arzer0.issueisekai.plugin.api.ReportJson;
-import ru.arzer0.issueisekai.plugin.events.ResourcePackStatusTracker;
 
 final class InventorySnapshotCapture {
     private static final int MAX_RAW_BYTES = 4 * 1024 * 1024;
@@ -31,14 +27,9 @@ final class InventorySnapshotCapture {
 
     static CreateReportRequest.InventorySnapshot capture(
             Player player,
-            ResourcePackStatusTracker packStatuses,
             String minecraftVersion,
-            UUID packIdOverride,
-            String packSha1Override,
             Logger logger) {
         int selectedSlot = player.getInventory().getHeldItemSlot();
-        CreateReportRequest.ResourcePackSnapshot pack = resourcePack(
-                player, packStatuses, packIdOverride, packSha1Override);
         try {
             PlayerInventory inventory = player.getInventory();
             ItemStack[] storage = copy(inventory.getStorageContents());
@@ -47,7 +38,9 @@ final class InventorySnapshotCapture {
             List<CreateReportRequest.InventorySlot> slots = new ArrayList<>();
             append(slots, storage, InventorySnapshotCapture::storageSlot);
             append(slots, armor, InventorySnapshotCapture::armorSlot);
-            append(slots, extra, index -> index == 0 ? "off_hand" : "extra_" + index);
+            if (extra.length > 0 && extra[0] != null && !extra[0].isEmpty()) {
+                slots.add(item("offhand", extra[0]));
+            }
 
             List<ItemStack> rawItems = new ArrayList<>(storage.length + armor.length + extra.length);
             java.util.Collections.addAll(rawItems, storage);
@@ -56,14 +49,12 @@ final class InventorySnapshotCapture {
             byte[] raw = ItemStack.serializeItemsAsBytes(rawItems);
             if (raw.length > MAX_RAW_BYTES) {
                 logger.warning("Inventory snapshot too large for " + player.getUniqueId());
-                return snapshot(
-                        minecraftVersion, selectedSlot, pack, slots, null, "TOO_LARGE");
+                return snapshot(minecraftVersion, selectedSlot, slots, null, "TOO_LARGE");
             }
             logger.fine("Inventory snapshot captured for " + player.getUniqueId());
             return snapshot(
                     minecraftVersion,
                     selectedSlot,
-                    pack,
                     slots,
                     Base64.getEncoder().encodeToString(raw),
                     null);
@@ -75,7 +66,6 @@ final class InventorySnapshotCapture {
             return snapshot(
                     minecraftVersion,
                     selectedSlot,
-                    pack,
                     List.of(),
                     null,
                     "SERIALIZATION_FAILED");
@@ -85,39 +75,11 @@ final class InventorySnapshotCapture {
     private static CreateReportRequest.InventorySnapshot snapshot(
             String minecraftVersion,
             int selectedSlot,
-            CreateReportRequest.ResourcePackSnapshot pack,
             List<CreateReportRequest.InventorySlot> slots,
             String raw,
             String error) {
         return new CreateReportRequest.InventorySnapshot(
-                1, minecraftVersion, selectedSlot, pack, slots, raw, error);
-    }
-
-    private static CreateReportRequest.ResourcePackSnapshot resourcePack(
-            Player player,
-            ResourcePackStatusTracker statuses,
-            UUID idOverride,
-            String sha1Override) {
-        UUID id = idOverride;
-        String sha1 = sha1Override;
-        if (id == null) {
-            ResourcePack pack = player.getServer().getServerResourcePack();
-            if (pack == null) {
-                return null;
-            }
-            id = pack.getId();
-            sha1 = validSha1(pack.getHash());
-        }
-        return new CreateReportRequest.ResourcePackSnapshot(
-                id, sha1, statuses.status(player.getUniqueId(), id));
-    }
-
-    private static String validSha1(String value) {
-        if (value == null) {
-            return null;
-        }
-        String normalized = value.toLowerCase(Locale.ROOT);
-        return normalized.matches("[0-9a-f]{40}") ? normalized : null;
+                2, minecraftVersion, selectedSlot, slots, raw, error);
     }
 
     private static ItemStack[] copy(ItemStack[] contents) {
@@ -143,16 +105,16 @@ final class InventorySnapshotCapture {
     }
 
     static String storageSlot(int index) {
-        return index < 9 ? "hotbar_" + index : "storage_" + (index - 9);
+        return index < 9 ? "hotbar_" + index : "storage_" + index;
     }
 
     static String armorSlot(int index) {
         return switch (index) {
-            case 0 -> "armor_feet";
-            case 1 -> "armor_legs";
-            case 2 -> "armor_chest";
-            case 3 -> "armor_head";
-            default -> "armor_" + index;
+            case 0 -> "boots";
+            case 1 -> "leggings";
+            case 2 -> "chestplate";
+            case 3 -> "helmet";
+            default -> throw new IllegalArgumentException("Unknown armor slot " + index);
         };
     }
 

@@ -93,15 +93,12 @@ class ReportApiControllerTest {
                           "item_model": "example:ruby_pickaxe"
                         }]
                         """),
-                new ReportQueueService.ResourcePackState(
-                        UUID.randomUUID(), "0123456789012345678901234567890123456789", "SUCCESSFULLY_LOADED"),
                 new ReportQueueService.PackRevision(
                         UUID.randomUUID(),
                         "Lobby pack",
-                        UUID.randomUUID(),
                         "0123456789012345678901234567890123456789",
                         "abcdef"),
-                "EXACT",
+                "ASSUMED",
                 null,
                 now)));
     }
@@ -141,9 +138,8 @@ class ReportApiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.slots[0].slot").value("hotbar_2"))
                 .andExpect(jsonPath("$.slots[0].item_model").value("example:ruby_pickaxe"))
-                .andExpect(jsonPath("$.resourcePack.status").value("SUCCESSFULLY_LOADED"))
                 .andExpect(jsonPath("$.packRevision.name").value("Lobby pack"))
-                .andExpect(jsonPath("$.packMatch").value("EXACT"))
+                .andExpect(jsonPath("$.packMatch").value("ASSUMED"))
                 .andExpect(jsonPath("$.rawItems").doesNotExist())
                 .andExpect(jsonPath("$.itemsNbtBase64").doesNotExist());
     }

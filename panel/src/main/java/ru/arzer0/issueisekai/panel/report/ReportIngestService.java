@@ -40,7 +40,7 @@ public class ReportIngestService {
         JdbcTemplate database = databases.getObject();
         UUID reportId = UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.ofInstant(Instant.now(), ZoneOffset.UTC);
-        PackResolution pack = resolvePack(database, server.getId(), request.inventory());
+        PackResolution pack = resolvePack(database, server.getId(), request.inventory() != null);
         List<UUID> inserted = database.query(
                 INSERT_REPORT,
                 (resultSet, row) -> resultSet.getObject("id", UUID.class),
@@ -82,57 +82,25 @@ public class ReportIngestService {
         return new Result(insertedId, true);
     }
 
-    private PackResolution resolvePack(
-            JdbcTemplate database,
-            UUID serverId,
-            CreateReportRequest.InventorySnapshot inventory) {
-        if (inventory == null) {
+    private PackResolution resolvePack(JdbcTemplate database, UUID serverId, boolean hasInventory) {
+        if (!hasInventory) {
             return new PackResolution(null, "NONE");
         }
-        CreateReportRequest.ResourcePackSnapshot snapshot = inventory.resourcePack();
-        ActivePack active = activePack(database, serverId);
-        UUID packId = snapshot == null ? null : snapshot.id();
-        String sha1 = snapshot == null ? null : snapshot.sha1();
-        if (packId == null && sha1 == null) {
-            return active == null
-                    ? new PackResolution(null, "NONE")
-                    : new PackResolution(active.revisionId(), "ASSUMED");
-        }
-        if (packId != null && sha1 != null) {
-            List<UUID> exact = database.query(
-                    """
-                            SELECT id FROM resource_packs
-                            WHERE server_id = ? AND kind = 'SERVER'
-                              AND resource_pack_id = ? AND sha1 = decode(?, 'hex')
-                            """,
-                    (resultSet, row) -> resultSet.getObject("id", UUID.class),
-                    serverId,
-                    packId,
-                    sha1);
-            return exact.isEmpty()
-                    ? new PackResolution(null, "MISMATCH")
-                    : new PackResolution(exact.getFirst(), "EXACT");
-        }
-        boolean activeMatches = active != null
-                && (packId == null || packId.equals(active.packId()))
-                && (sha1 == null || sha1.equals(active.sha1()));
-        return activeMatches
-                ? new PackResolution(active.revisionId(), "ASSUMED")
-                : new PackResolution(null, "MISMATCH");
+        UUID active = activePack(database, serverId);
+        return active == null
+                ? new PackResolution(null, "NONE")
+                : new PackResolution(active, "ASSUMED");
     }
 
-    private static ActivePack activePack(JdbcTemplate database, UUID serverId) {
-        List<ActivePack> active = database.query(
+    private static UUID activePack(JdbcTemplate database, UUID serverId) {
+        List<UUID> active = database.query(
                 """
-                        SELECT rp.id, rp.resource_pack_id, encode(rp.sha1, 'hex') AS sha1
+                        SELECT rp.id
                         FROM servers s
                         JOIN resource_packs rp ON rp.id = s.active_resource_pack_id
                         WHERE s.id = ? AND rp.server_id = s.id
                         """,
-                (resultSet, row) -> new ActivePack(
-                        resultSet.getObject("id", UUID.class),
-                        resultSet.getObject("resource_pack_id", UUID.class),
-                        resultSet.getString("sha1")),
+                (resultSet, row) -> resultSet.getObject("id", UUID.class),
                 serverId);
         return active.isEmpty() ? null : active.getFirst();
     }
@@ -186,5 +154,4 @@ public class ReportIngestService {
 
     private record PackResolution(UUID revisionId, String match) {}
 
-    private record ActivePack(UUID revisionId, UUID packId, String sha1) {}
 }
