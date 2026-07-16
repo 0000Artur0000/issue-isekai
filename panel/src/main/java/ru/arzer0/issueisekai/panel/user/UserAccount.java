@@ -2,9 +2,10 @@ package ru.arzer0.issueisekai.panel.user;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
@@ -20,9 +21,12 @@ public class UserAccount {
     @Column(name = "password_hash", nullable = false, length = 100)
     private String passwordHash;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
-    private Role role;
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = "role_id", nullable = false)
+    private UserRole role;
+
+    @Column(name = "auth_version", nullable = false)
+    private long authVersion;
 
     @Column(nullable = false)
     private boolean enabled;
@@ -39,7 +43,7 @@ public class UserAccount {
             UUID id,
             String username,
             String passwordHash,
-            Role role,
+            UserRole role,
             boolean enabled,
             Instant createdAt,
             Instant updatedAt) {
@@ -64,8 +68,12 @@ public class UserAccount {
         return passwordHash;
     }
 
-    public Role getRole() {
+    public UserRole getRole() {
         return role;
+    }
+
+    public long getAuthVersion() {
+        return authVersion;
     }
 
     public boolean isEnabled() {
@@ -80,15 +88,10 @@ public class UserAccount {
         return updatedAt;
     }
 
-    void update(String passwordHash, Role role, boolean enabled, Instant updatedAt) {
+    void update(String passwordHash, UserRole role, boolean enabled, Instant updatedAt) {
         this.passwordHash = passwordHash;
         this.role = role;
         this.enabled = enabled;
         this.updatedAt = updatedAt;
-    }
-
-    public enum Role {
-        ADMIN,
-        OPERATOR
     }
 }

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,12 +36,14 @@ public class ServerAdminApiController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('servers.view')")
     public List<ServerResponse> list() {
         return servers.list().stream().map(ServerResponse::from).toList();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('servers.create')")
     public CredentialsResponse create(@RequestBody CreateServerRequest request) {
         ServerService.Credentials credentials = servers.create(request.name());
         return new CredentialsResponse(
@@ -48,17 +51,20 @@ public class ServerAdminApiController {
     }
 
     @PostMapping("/{id}/rotate")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('servers.keys.rotate')")
     public ApiKeyResponse rotate(@PathVariable UUID id) {
         return new ApiKeyResponse(servers.rotateKey(id));
     }
 
     @PostMapping("/{id}/disable")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('servers.state.update')")
     public void disable(@PathVariable UUID id) {
         servers.disable(id);
     }
 
     @GetMapping("/{id}/resource-packs")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('servers.packs.view')")
     public List<Revision> resourcePacks(@PathVariable UUID id) {
         return resourcePacks.list(id);
     }
@@ -67,6 +73,7 @@ public class ServerAdminApiController {
             path = "/{id}/resource-packs",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('servers.packs.upload')")
     public Revision upload(
             @PathVariable UUID id,
             @RequestParam String displayName,
@@ -77,6 +84,7 @@ public class ServerAdminApiController {
 
     @PutMapping("/{id}/resource-packs/{revisionId}/active")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('servers.packs.activate')")
     public void activate(@PathVariable UUID id, @PathVariable UUID revisionId) {
         resourcePacks.activate(id, revisionId);
     }

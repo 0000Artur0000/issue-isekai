@@ -14,11 +14,15 @@ import org.springframework.util.StringUtils;
 @Service
 public class UserService {
     private final ObjectProvider<UserAccountRepository> repositories;
+    private final ObjectProvider<UserRoleRepository> roles;
     private final PasswordEncoder passwordEncoder;
 
     public UserService(
-            ObjectProvider<UserAccountRepository> repositories, PasswordEncoder passwordEncoder) {
+            ObjectProvider<UserAccountRepository> repositories,
+            ObjectProvider<UserRoleRepository> roles,
+            PasswordEncoder passwordEncoder) {
         this.repositories = repositories;
+        this.roles = roles;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -28,12 +32,10 @@ public class UserService {
     }
 
     @Transactional
-    public UserAccount create(String username, String password, UserAccount.Role role) {
+    public UserAccount create(String username, String password, String roleCode) {
         String normalizedUsername = validateUsername(username);
         validatePassword(password);
-        if (role == null) {
-            throw new IllegalArgumentException("Role is required");
-        }
+        UserRole role = role(roleCode);
         UserAccountRepository repository = repository();
         if (repository.existsByUsername(normalizedUsername)) {
             throw new IllegalArgumentException("Username already exists");
@@ -50,18 +52,16 @@ public class UserService {
     }
 
     @Transactional
-    public UserAccount update(UUID id, UserAccount.Role role, boolean enabled, String password) {
-        if (role == null) {
-            throw new IllegalArgumentException("Role is required");
-        }
+    public UserAccount update(UUID id, String roleCode, boolean enabled, String password) {
+        UserRole role = role(roleCode);
         UserAccountRepository repository = repository();
         UserAccount account = repository
                 .findById(id)
                 .orElseThrow(UserNotFoundException::new);
         if (account.isEnabled()
-                && account.getRole() == UserAccount.Role.ADMIN
-                && (!enabled || role != UserAccount.Role.ADMIN)
-                && repository.countByRoleAndEnabledTrue(UserAccount.Role.ADMIN) <= 1) {
+                && UserRole.ADMIN.equals(account.getRole().getCode())
+                && (!enabled || !UserRole.ADMIN.equals(role.getCode()))
+                && repository.findByRoleCodeAndEnabledTrue(UserRole.ADMIN).size() <= 1) {
             throw new IllegalArgumentException("At least one enabled admin is required");
         }
         String passwordHash = account.getPasswordHash();
@@ -75,6 +75,15 @@ public class UserService {
 
     private UserAccountRepository repository() {
         return repositories.getObject();
+    }
+
+    private UserRole role(String code) {
+        if (!StringUtils.hasText(code)) {
+            throw new IllegalArgumentException("Role is required");
+        }
+        return roles.getObject()
+                .findByCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Role not found"));
     }
 
     private static String validateUsername(String username) {

@@ -7,6 +7,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,6 +27,9 @@ public class ResourcePackAssetController {
     }
 
     @GetMapping("/api/resource-packs/{revisionId}/assets/**")
+    @PreAuthorize(
+            "hasRole('ADMIN') or hasAuthority('reports.inventory.view') "
+                    + "or hasAuthority('servers.packs.view')")
     public ResponseEntity<byte[]> asset(
             @PathVariable UUID revisionId, HttpServletRequest request) {
         String prefix = request.getContextPath() + "/api/resource-packs/" + revisionId + "/";

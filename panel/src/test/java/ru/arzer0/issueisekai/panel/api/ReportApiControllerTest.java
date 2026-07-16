@@ -17,6 +17,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,8 +28,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import ru.arzer0.issueisekai.panel.report.ReportQueueService;
 import ru.arzer0.issueisekai.panel.server.ResourcePackService;
 
@@ -105,7 +109,7 @@ class ReportApiControllerTest {
 
     @Test
     void returnsReportListAndDetail() throws Exception {
-        var operator = user("operator").roles("OPERATOR");
+        var operator = operator("reports.view");
 
         mvc.perform(get("/api/reports").with(operator))
                 .andExpect(status().isOk())
@@ -126,7 +130,7 @@ class ReportApiControllerTest {
 
     @Test
     void returnsChoicesAndLazyInventoryWithoutRawNbt() throws Exception {
-        var operator = user("operator").roles("OPERATOR");
+        var operator = operator("reports.view", "reports.inventory.view");
 
         mvc.perform(get("/api/choices").with(operator))
                 .andExpect(status().isOk())
@@ -150,7 +154,7 @@ class ReportApiControllerTest {
         when(reports.find(unknown)).thenThrow(new ReportQueueService.ReportNotFoundException());
 
         mvc.perform(get("/api/reports/{id}", unknown)
-                        .with(user("operator").roles("OPERATOR")))
+                        .with(operator("reports.view")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Report not found"));
     }
@@ -161,7 +165,7 @@ class ReportApiControllerTest {
         when(reports.inventory(withoutInventory)).thenReturn(Optional.empty());
 
         mvc.perform(get("/api/reports/{id}/inventory", withoutInventory)
-                        .with(user("operator").roles("OPERATOR")))
+                        .with(operator("reports.inventory.view")))
                 .andExpect(status().isNoContent());
     }
 
@@ -204,7 +208,7 @@ class ReportApiControllerTest {
 
     @Test
     void operatorJoinsAndLeavesOnlyAsSelf() throws Exception {
-        var operator = user("operator").roles("OPERATOR");
+        var operator = operator("reports.participate");
 
         mvc.perform(post("/api/reports/{id}/participants", reportId)
                         .with(operator)
@@ -233,13 +237,20 @@ class ReportApiControllerTest {
         mvc.perform(get(
                                 "/api/resource-packs/{revisionId}/assets/example/items/ruby.json",
                                 revisionId)
-                        .with(user("operator").roles("OPERATOR")))
+                        .with(operator("reports.inventory.view")))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("application/json"))
                 .andExpect(content().string("{}"))
                 .andExpect(header().string("ETag", "\"abcdef\""))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(header().string("Cache-Control", containsString("immutable")));
+    }
+
+    private static RequestPostProcessor operator(String... permissions) {
+        var authorities = new ArrayList<SimpleGrantedAuthority>();
+        authorities.add(new SimpleGrantedAuthority("ROLE_OPERATOR"));
+        Arrays.stream(permissions).map(SimpleGrantedAuthority::new).forEach(authorities::add);
+        return user("operator").authorities(authorities);
     }
 
     private ReportQueueService.ReportDetail detail() {

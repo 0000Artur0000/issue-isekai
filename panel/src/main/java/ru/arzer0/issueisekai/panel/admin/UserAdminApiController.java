@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,17 +28,26 @@ public class UserAdminApiController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('users.view')")
     public List<UserResponse> list() {
         return users.list().stream().map(UserResponse::from).toList();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize(
+            "hasRole('ADMIN') or "
+                    + "(hasAuthority('users.create') and hasAuthority('users.role.assign'))")
     public UserResponse create(@RequestBody CreateUserRequest request) {
         return UserResponse.from(users.create(request.username(), request.password(), request.role()));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize(
+            "hasRole('ADMIN') or "
+                    + "(hasAuthority('users.state.update') "
+                    + "and hasAuthority('users.password.reset') "
+                    + "and hasAuthority('users.role.assign'))")
     public UserResponse update(@PathVariable UUID id, @RequestBody UpdateUserRequest request) {
         if (request.enabled() == null) {
             throw new IllegalArgumentException("Enabled is required");
@@ -58,14 +68,14 @@ public class UserAdminApiController {
         return new ErrorResponse(exception.getMessage());
     }
 
-    public record CreateUserRequest(String username, String password, UserAccount.Role role) {}
+    public record CreateUserRequest(String username, String password, String role) {}
 
-    public record UpdateUserRequest(UserAccount.Role role, Boolean enabled, String password) {}
+    public record UpdateUserRequest(String role, Boolean enabled, String password) {}
 
     public record UserResponse(
             UUID id,
             String username,
-            UserAccount.Role role,
+            String role,
             boolean enabled,
             Instant createdAt,
             Instant updatedAt) {
@@ -73,7 +83,7 @@ public class UserAdminApiController {
             return new UserResponse(
                     account.getId(),
                     account.getUsername(),
-                    account.getRole(),
+                    account.getRole().getCode(),
                     account.isEnabled(),
                     account.getCreatedAt(),
                     account.getUpdatedAt());

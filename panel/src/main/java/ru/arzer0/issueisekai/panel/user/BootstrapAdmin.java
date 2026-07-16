@@ -46,7 +46,7 @@ public class BootstrapAdmin implements ApplicationRunner {
                 UUID.randomUUID(),
                 username,
                 passwordEncoder.encode(password),
-                UserAccount.Role.ADMIN,
+                UserRole.adminReference(),
                 true,
                 now,
                 now));

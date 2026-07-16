@@ -20,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +51,7 @@ class SecurityConfigurationTest {
     @Autowired private ObjectMapper json;
     @Autowired private PasswordEncoder passwords;
     @MockitoBean private UserAccountRepository users;
+    @MockitoBean private UserRoleRepository roles;
     @MockitoBean private ReportQueueService reports;
     @MockitoBean private ServerService servers;
     @MockitoBean private ReportIngestService ingest;
@@ -57,11 +59,20 @@ class SecurityConfigurationTest {
     @BeforeEach
     void setUp() {
         Instant now = Instant.now();
+        UserRole operator = new UserRole(
+                UUID.randomUUID(), UserRole.OPERATOR, "Оператор", "", true, now, now);
+        when(roles.findPermissionCodes(operator.getId()))
+                .thenReturn(List.of(
+                        "reports.view",
+                        "reports.inventory.view",
+                        "reports.participate",
+                        "servers.view"));
+        when(users.findEnabledAuthVersion("operator")).thenReturn(Optional.of(0L));
         when(users.findByUsername("operator")).thenReturn(Optional.of(new UserAccount(
                 UUID.randomUUID(),
                 "operator",
                 passwords.encode("secret-password"),
-                UserAccount.Role.OPERATOR,
+                operator,
                 true,
                 now,
                 now)));
@@ -72,11 +83,14 @@ class SecurityConfigurationTest {
         mvc.perform(get("/reports"))
                 .andExpect(status().isFound())
                 .andExpect(redirectedUrl("http://localhost/login"));
-        mvc.perform(get("/api/reports")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/reports"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
         mvc.perform(get("/users").with(user("operator").roles("OPERATOR")))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
         mvc.perform(get("/api/admin/users").with(user("operator").roles("OPERATOR")))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
         mvc.perform(post("/users").with(user("admin").roles("ADMIN")))
                 .andExpect(status().isForbidden());
         mvc.perform(post("/api/reports/{id}/participants", UUID.randomUUID())
@@ -131,10 +145,10 @@ class SecurityConfigurationTest {
         var login = mvc.perform(post("/login")
                         .session(session)
                         .param("username", "operator")
-                        .param("password", "secret-password")
-                        .with(csrf()))
+                .param("password", "secret-password")
+                .with(csrf()))
                 .andExpect(status().isNoContent())
-                .andExpect(authenticated().withRoles("OPERATOR"))
+                .andExpect(authenticated())
                 .andReturn();
         MockHttpSession authenticatedSession =
                 (MockHttpSession) login.getRequest().getSession(false);
@@ -166,7 +180,7 @@ class SecurityConfigurationTest {
                         .param("username", "operator")
                         .param("password", "secret-password"))
                 .andExpect(status().isNoContent())
-                .andExpect(authenticated().withRoles("OPERATOR"))
+                .andExpect(authenticated())
                 .andReturn();
         MockHttpSession authenticatedSession =
                 (MockHttpSession) login.getRequest().getSession(false);
@@ -204,7 +218,7 @@ class SecurityConfigurationTest {
                         .param("username", "operator")
                         .param("password", "secret-password"))
                 .andExpect(status().isNoContent())
-                .andExpect(authenticated().withRoles("OPERATOR"))
+                .andExpect(authenticated())
                 .andReturn();
         MockHttpSession secondAuthenticatedSession =
                 (MockHttpSession) secondLogin.getRequest().getSession(false);
@@ -213,6 +227,23 @@ class SecurityConfigurationTest {
                 .andExpect(jsonPath("$.authenticated").value(true))
                 .andReturn();
         assertNotEquals(afterLogout.token(), csrfValues(secondIdentity).token());
+    }
+
+    @Test
+    void revokesSessionWhenAuthVersionChanges() throws Exception {
+        MvcResult login = mvc.perform(post("/login")
+                        .param("username", "operator")
+                        .param("password", "secret-password")
+                        .with(csrf()))
+                .andExpect(status().isNoContent())
+                .andReturn();
+        MockHttpSession session = (MockHttpSession) login.getRequest().getSession(false);
+        when(users.findEnabledAuthVersion("operator")).thenReturn(Optional.of(1L));
+
+        mvc.perform(get("/api/reports").session(session))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+                .andExpect(unauthenticated());
     }
 
     private CsrfValues csrfValues(MvcResult result) throws Exception {

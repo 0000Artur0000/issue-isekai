@@ -36,7 +36,7 @@ class BootstrapAdminTest {
         var user = ArgumentCaptor.forClass(UserAccount.class);
         verify(repository, times(1)).saveAndFlush(user.capture());
         assertEquals("admin", user.getValue().getUsername());
-        assertEquals(UserAccount.Role.ADMIN, user.getValue().getRole());
+        assertEquals(UserRole.ADMIN, user.getValue().getRole().getCode());
         assertTrue(user.getValue().isEnabled());
         assertTrue(encoder.matches("secret-password", user.getValue().getPasswordHash()));
     }

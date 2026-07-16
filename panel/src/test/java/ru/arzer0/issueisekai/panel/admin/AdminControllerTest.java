@@ -22,6 +22,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.arzer0.issueisekai.panel.server.ResourcePackService;
@@ -29,6 +30,7 @@ import ru.arzer0.issueisekai.panel.server.ServerInstance;
 import ru.arzer0.issueisekai.panel.server.ServerService;
 import ru.arzer0.issueisekai.panel.user.UserAccount;
 import ru.arzer0.issueisekai.panel.user.UserAccountRepository;
+import ru.arzer0.issueisekai.panel.user.UserRole;
 import ru.arzer0.issueisekai.panel.user.UserService;
 
 @SpringBootTest(
@@ -56,16 +58,18 @@ class AdminControllerTest {
         UUID userId = UUID.randomUUID();
         Instant createdAt = Instant.parse("2026-07-15T00:00:00Z");
         UserAccount account = mock(UserAccount.class);
+        UserRole role = mock(UserRole.class);
+        when(role.getCode()).thenReturn(UserRole.OPERATOR);
         when(account.getId()).thenReturn(userId);
         when(account.getUsername()).thenReturn("operator");
-        when(account.getRole()).thenReturn(UserAccount.Role.OPERATOR);
+        when(account.getRole()).thenReturn(role);
         when(account.isEnabled()).thenReturn(true);
         when(account.getCreatedAt()).thenReturn(createdAt);
         when(account.getUpdatedAt()).thenReturn(createdAt);
         when(users.list()).thenReturn(List.of(account));
-        when(users.create("operator", "password-1", UserAccount.Role.OPERATOR))
+        when(users.create("operator", "password-1", UserRole.OPERATOR))
                 .thenReturn(account);
-        when(users.update(userId, UserAccount.Role.ADMIN, true, ""))
+        when(users.update(userId, UserRole.ADMIN, true, ""))
                 .thenReturn(account);
         var admin = user("admin").roles("ADMIN");
 
@@ -112,8 +116,28 @@ class AdminControllerTest {
         mvc.perform(get("/api/admin/users")
                         .with(user("operator").roles("OPERATOR")))
                 .andExpect(status().isForbidden());
-        verify(users).create("operator", "password-1", UserAccount.Role.OPERATOR);
-        verify(users).update(userId, UserAccount.Role.ADMIN, true, "");
+        verify(users).create("operator", "password-1", UserRole.OPERATOR);
+        verify(users).update(userId, UserRole.ADMIN, true, "");
+    }
+
+    @Test
+    void customRoleCanUseOnlyGrantedServerOperation() throws Exception {
+        var support = user("support")
+                .authorities(
+                        new SimpleGrantedAuthority("ROLE_SUPPORT"),
+                        new SimpleGrantedAuthority("servers.view"));
+
+        mvc.perform(get("/api/admin/servers").with(support))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/admin/servers")
+                        .with(support)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Lobby"}
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
     @Test

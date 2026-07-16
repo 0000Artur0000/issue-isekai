@@ -46,7 +46,9 @@ until compose exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" 
 done
 
 compose run -d --name "$v1_container" --no-deps \
-  -e SPRING_FLYWAY_TARGET=1 panel >/dev/null
+  -e SPRING_FLYWAY_TARGET=1 \
+  -e SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration,org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration \
+  panel >/dev/null
 wait_for_panel "$v1_container"
 
 compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<'SQL'
@@ -94,9 +96,57 @@ DECLARE
     user_one UUID := '00000000-0000-0000-0000-000000000001';
     pack_one UUID := '00000000-0000-0000-0000-000000000006';
 BEGIN
-    IF (SELECT count(*) FROM flyway_schema_history WHERE success) <> 5 THEN
-        RAISE EXCEPTION 'expected Flyway versions V1 through V5';
+    IF (SELECT count(*) FROM flyway_schema_history WHERE success) <> 6 THEN
+        RAISE EXCEPTION 'expected Flyway versions V1 through V6';
     END IF;
+    IF (SELECT count(*) FROM roles) <> 2 THEN
+        RAISE EXCEPTION 'expected ADMIN and OPERATOR roles';
+    END IF;
+    IF (SELECT count(*) FROM permissions) <> 23 THEN
+        RAISE EXCEPTION 'expected permission catalog';
+    END IF;
+    IF (SELECT count(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id
+        WHERE r.code = 'ADMIN') <> 23 THEN
+        RAISE EXCEPTION 'ADMIN permissions were not seeded';
+    END IF;
+    IF (SELECT count(*) FROM role_permissions rp JOIN roles r ON r.id = rp.role_id
+        WHERE r.code = 'OPERATOR') <> 4 THEN
+        RAISE EXCEPTION 'OPERATOR permissions were not seeded';
+    END IF;
+    IF (SELECT r.code FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = user_one)
+        <> 'OPERATOR' THEN
+        RAISE EXCEPTION 'existing user role was not migrated';
+    END IF;
+    IF (SELECT auth_version FROM users WHERE id = user_one) <> 0 THEN
+        RAISE EXCEPTION 'existing user auth_version was not initialized';
+    END IF;
+    UPDATE users SET password_hash = 'changed-hash' WHERE id = user_one;
+    IF (SELECT auth_version FROM users WHERE id = user_one) <> 1 THEN
+        RAISE EXCEPTION 'user security change did not increment auth_version';
+    END IF;
+    INSERT INTO role_permissions (role_id, permission_code)
+    SELECT id, 'servers.create' FROM roles WHERE code = 'OPERATOR';
+    IF (SELECT auth_version FROM users WHERE id = user_one) <> 2 THEN
+        RAISE EXCEPTION 'role permission grant did not increment auth_version';
+    END IF;
+    DELETE FROM role_permissions
+    WHERE role_id = (SELECT id FROM roles WHERE code = 'OPERATOR')
+        AND permission_code = 'servers.create';
+    IF (SELECT auth_version FROM users WHERE id = user_one) <> 3 THEN
+        RAISE EXCEPTION 'role permission revoke did not increment auth_version';
+    END IF;
+    IF EXISTS (
+        SELECT FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'role'
+    ) THEN
+        RAISE EXCEPTION 'legacy users.role column still exists';
+    END IF;
+    BEGIN
+        DELETE FROM roles WHERE code = 'OPERATOR';
+        RAISE EXCEPTION 'role used by a user was deleted';
+    EXCEPTION WHEN foreign_key_violation THEN
+        NULL;
+    END;
 
     INSERT INTO report_participants (report_id, user_id) VALUES (report_one, user_one);
     BEGIN

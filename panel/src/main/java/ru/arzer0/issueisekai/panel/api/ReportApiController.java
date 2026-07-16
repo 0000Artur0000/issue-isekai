@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,6 +39,7 @@ public class ReportApiController {
     }
 
     @GetMapping("/reports")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('reports.view')")
     public Page list(
             @RequestParam(defaultValue = "") String search,
             @RequestParam(required = false) UUID serverId,
@@ -52,12 +54,14 @@ public class ReportApiController {
     }
 
     @GetMapping("/reports/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('reports.view')")
     public ReportResponse detail(@PathVariable UUID id) {
         ReportDetail report = reports.find(id);
         return new ReportResponse(report, reports.events(id), reports.participants(id));
     }
 
     @GetMapping("/reports/{id}/inventory")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('reports.inventory.view')")
     public ResponseEntity<InventorySnapshot> inventory(@PathVariable UUID id) {
         return reports.inventory(id)
                 .map(ResponseEntity::ok)
@@ -66,6 +70,12 @@ public class ReportApiController {
 
     @PutMapping("/reports/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize(
+            "hasRole('ADMIN') or "
+                    + "(hasAuthority('reports.status.update') "
+                    + "and hasAuthority('reports.priority.update') "
+                    + "and hasAuthority('reports.assignee.update') "
+                    + "and hasAuthority('reports.duplicate.update'))")
     public void update(
             @PathVariable UUID id, @RequestBody UpdateReportRequest request, Principal principal) {
         reports.update(
@@ -79,17 +89,20 @@ public class ReportApiController {
 
     @PostMapping("/reports/{id}/participants")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('reports.participate')")
     public void join(@PathVariable UUID id, Principal principal) {
         reports.join(id, principal.getName());
     }
 
     @DeleteMapping("/reports/{id}/participants")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('reports.participate')")
     public void leave(@PathVariable UUID id, Principal principal) {
         reports.leave(id, principal.getName());
     }
 
     @GetMapping("/choices")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('reports.view')")
     public ChoicesResponse choices() {
         return new ChoicesResponse(
                 reports.servers(),
