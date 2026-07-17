@@ -55,12 +55,14 @@ class SecurityConfigurationTest {
     @MockitoBean private ReportQueueService reports;
     @MockitoBean private ServerService servers;
     @MockitoBean private ReportIngestService ingest;
+    private UUID operatorRoleId;
 
     @BeforeEach
     void setUp() {
         Instant now = Instant.now();
+        operatorRoleId = UUID.randomUUID();
         UserRole operator = new UserRole(
-                UUID.randomUUID(), UserRole.OPERATOR, "Оператор", "", true, now, now);
+                operatorRoleId, UserRole.OPERATOR, "Оператор", "", true, now, now);
         when(roles.findPermissionCodes(operator.getId()))
                 .thenReturn(List.of(
                         "reports.view",
@@ -166,6 +168,8 @@ class SecurityConfigurationTest {
                 .andExpect(jsonPath("$.authenticated").value(false))
                 .andExpect(jsonPath("$.username").isEmpty())
                 .andExpect(jsonPath("$.role").isEmpty())
+                .andExpect(jsonPath("$.permissions").isArray())
+                .andExpect(jsonPath("$.locale").value("ru"))
                 .andExpect(jsonPath("$.csrfHeaderName").value("X-CSRF-TOKEN"))
                 .andExpect(jsonPath("$.csrfToken").isNotEmpty())
                 .andReturn();
@@ -188,7 +192,9 @@ class SecurityConfigurationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authenticated").value(true))
                 .andExpect(jsonPath("$.username").value("operator"))
-                .andExpect(jsonPath("$.role").value("OPERATOR"))
+                .andExpect(jsonPath("$.role.id").value(operatorRoleId.toString()))
+                .andExpect(jsonPath("$.role.code").value("OPERATOR"))
+                .andExpect(jsonPath("$.permissions").isArray())
                 .andReturn();
         CsrfValues afterLogin = csrfValues(authenticatedIdentity);
         assertNotEquals(beforeLogin.token(), afterLogin.token());

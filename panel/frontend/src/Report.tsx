@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
-import { api } from './api'
+import { api, can } from './api'
 import { useAuth } from './auth'
 import Inventory from './Inventory'
 import { classifyUrls } from './media.mjs'
@@ -264,13 +264,20 @@ export default function Report() {
           {participants.length > 0
             ? participants.map((participant) => participant.name).join(', ')
             : '—'}{' '}
-          <button type="button" onClick={toggleParticipation} disabled={pending}>
-            {joined ? 'Покинуть' : 'Присоединиться'}
-          </button>
+          {can(me, 'reports.participate') && (
+            <button type="button" onClick={toggleParticipation} disabled={pending}>
+              {joined ? 'Покинуть' : 'Присоединиться'}
+            </button>
+          )}
         </dd>
       </dl>
-      {me.role === 'ADMIN' && <WorkflowForm report={report} onSaved={load} />}
-      <Inventory reportId={report.id} />
+      {can(me, 'reports.status.update') &&
+        can(me, 'reports.priority.update') &&
+        can(me, 'reports.assignee.update') &&
+        can(me, 'reports.duplicate.update') && (
+          <WorkflowForm report={report} onSaved={load} />
+        )}
+      {can(me, 'reports.inventory.view') && <Inventory reportId={report.id} />}
       <section aria-label="История">
         <h2>История</h2>
         <ul className="audit">

@@ -3,8 +3,11 @@ package ru.arzer0.issueisekai.panel.admin;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -14,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +34,7 @@ import ru.arzer0.issueisekai.panel.server.ServerInstance;
 import ru.arzer0.issueisekai.panel.server.ServerService;
 import ru.arzer0.issueisekai.panel.user.UserAccount;
 import ru.arzer0.issueisekai.panel.user.UserAccountRepository;
+import ru.arzer0.issueisekai.panel.user.RoleService;
 import ru.arzer0.issueisekai.panel.user.UserRole;
 import ru.arzer0.issueisekai.panel.user.UserService;
 
@@ -44,6 +49,7 @@ class AdminControllerTest {
     @Autowired private MockMvc mvc;
     @MockitoBean private UserAccountRepository accounts;
     @MockitoBean private UserService users;
+    @MockitoBean private RoleService roles;
     @MockitoBean private ServerService servers;
     @MockitoBean private ResourcePackService resourcePacks;
 
@@ -56,10 +62,15 @@ class AdminControllerTest {
     @Test
     void exposesSafeUserRestDtoToAdminsOnly() throws Exception {
         UUID userId = UUID.randomUUID();
+        UUID operatorRoleId = UUID.randomUUID();
+        UUID adminRoleId = UUID.randomUUID();
         Instant createdAt = Instant.parse("2026-07-15T00:00:00Z");
         UserAccount account = mock(UserAccount.class);
         UserRole role = mock(UserRole.class);
+        when(role.getId()).thenReturn(operatorRoleId);
         when(role.getCode()).thenReturn(UserRole.OPERATOR);
+        when(role.getDisplayName()).thenReturn("Оператор");
+        when(role.isSystem()).thenReturn(true);
         when(account.getId()).thenReturn(userId);
         when(account.getUsername()).thenReturn("operator");
         when(account.getRole()).thenReturn(role);
@@ -67,9 +78,9 @@ class AdminControllerTest {
         when(account.getCreatedAt()).thenReturn(createdAt);
         when(account.getUpdatedAt()).thenReturn(createdAt);
         when(users.list()).thenReturn(List.of(account));
-        when(users.create("operator", "password-1", UserRole.OPERATOR))
+        when(users.create("operator", "password-1", operatorRoleId))
                 .thenReturn(account);
-        when(users.update(userId, UserRole.ADMIN, true, ""))
+        when(users.update(userId, adminRoleId, true, ""))
                 .thenReturn(account);
         var admin = user("admin").roles("ADMIN");
 
@@ -77,7 +88,8 @@ class AdminControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(userId.toString()))
                 .andExpect(jsonPath("$[0].username").value("operator"))
-                .andExpect(jsonPath("$[0].role").value("OPERATOR"))
+                .andExpect(jsonPath("$[0].role.id").value(operatorRoleId.toString()))
+                .andExpect(jsonPath("$[0].role.code").value("OPERATOR"))
                 .andExpect(jsonPath("$[0].passwordHash").doesNotExist())
                 .andExpect(jsonPath("$[0].password").doesNotExist());
         mvc.perform(post("/api/admin/users")
@@ -88,9 +100,9 @@ class AdminControllerTest {
                                 {
                                   "username": "operator",
                                   "password": "password-1",
-                                  "role": "OPERATOR"
+                                  "roleId": "%s"
                                 }
-                                """))
+                                """.formatted(operatorRoleId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.username").value("operator"))
                 .andExpect(jsonPath("$.passwordHash").doesNotExist())
@@ -100,24 +112,24 @@ class AdminControllerTest {
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"role": "ADMIN", "enabled": true, "password": ""}
-                                """))
+                                {"roleId": "%s", "enabled": true, "password": ""}
+                                """.formatted(adminRoleId)))
                 .andExpect(status().isOk());
         mvc.perform(put("/api/admin/users/{id}", userId)
                         .with(admin)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"role": "ADMIN"}
-                                """))
+                                {"roleId": "%s"}
+                                """.formatted(adminRoleId)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Enabled is required"));
 
         mvc.perform(get("/api/admin/users")
                         .with(user("operator").roles("OPERATOR")))
                 .andExpect(status().isForbidden());
-        verify(users).create("operator", "password-1", UserRole.OPERATOR);
-        verify(users).update(userId, UserRole.ADMIN, true, "");
+        verify(users).create("operator", "password-1", operatorRoleId);
+        verify(users).update(userId, adminRoleId, true, "");
     }
 
     @Test
@@ -138,6 +150,56 @@ class AdminControllerTest {
                                 """))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void managesRolesThroughPermissionApi() throws Exception {
+        UUID roleId = UUID.randomUUID();
+        Instant now = Instant.parse("2026-07-16T00:00:00Z");
+        UserRole role = mock(UserRole.class);
+        when(role.getId()).thenReturn(roleId);
+        when(role.getCode()).thenReturn("CUSTOM_TEST");
+        when(role.getDisplayName()).thenReturn("Тестировщик");
+        when(role.getDescription()).thenReturn("Проверяет заявки");
+        when(role.getPermissions()).thenReturn(Set.of("reports.view"));
+        when(role.getCreatedAt()).thenReturn(now);
+        when(role.getUpdatedAt()).thenReturn(now);
+        when(roles.permissions()).thenReturn(List.of("reports.view"));
+        when(roles.list()).thenReturn(List.of(role));
+        when(roles.create(
+                        eq("Тестировщик"),
+                        eq("Проверяет заявки"),
+                        eq(Set.of("reports.view")),
+                        any()))
+                .thenReturn(role);
+        var admin = user("admin").roles("ADMIN");
+
+        mvc.perform(get("/api/admin/permissions").with(admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value("reports.view"));
+        mvc.perform(get("/api/admin/roles").with(admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(roleId.toString()))
+                .andExpect(jsonPath("$[0].permissions[0]").value("reports.view"));
+        mvc.perform(post("/api/admin/roles")
+                        .with(admin)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "displayName":"Тестировщик",
+                                  "description":"Проверяет заявки",
+                                  "permissions":["reports.view"]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value("CUSTOM_TEST"));
+        mvc.perform(delete("/api/admin/roles/{id}", roleId)
+                        .with(admin)
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(roles).delete(roleId);
     }
 
     @Test

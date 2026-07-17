@@ -1,10 +1,16 @@
 package ru.arzer0.issueisekai.panel.user;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -34,6 +40,13 @@ public class UserRole {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "role_permissions",
+            joinColumns = @JoinColumn(name = "role_id", nullable = false))
+    @Column(name = "permission_code", nullable = false, length = 64)
+    private Set<String> permissions = new HashSet<>();
 
     protected UserRole() {}
 
@@ -91,5 +104,17 @@ public class UserRole {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public Set<String> getPermissions() {
+        return Set.copyOf(permissions);
+    }
+
+    void update(String displayName, String description, Set<String> permissions, Instant updatedAt) {
+        this.displayName = displayName;
+        this.description = description;
+        this.permissions.clear();
+        this.permissions.addAll(permissions);
+        this.updatedAt = updatedAt;
     }
 }

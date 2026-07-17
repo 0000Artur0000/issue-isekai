@@ -6,6 +6,7 @@ admin_username="${BOOTSTRAP_ADMIN_USERNAME:-admin}"
 admin_password="${BOOTSTRAP_ADMIN_PASSWORD:-change-me-now}"
 temporary="$(mktemp -d)"
 cookies="$temporary/cookies"
+user_cookies="$temporary/user-cookies"
 trap 'rm -rf "$temporary"' EXIT
 
 json_value() {
@@ -30,12 +31,43 @@ identity="$(curl -fsS -b "$cookies" -c "$cookies" "$panel_url/api/me")"
 csrf_header="$(json_value "$identity" csrfHeaderName)"
 csrf="$(json_value "$identity" csrfToken)"
 printf '%s' "$identity" | grep -q '"authenticated":true'
-printf '%s' "$identity" | grep -q '"role":"ADMIN"'
+printf '%s' "$identity" | grep -q '"code":"ADMIN"'
+
+suffix="$(date +%s)"
+echo "Smoke: create and assign custom role"
+curl -fsS -b "$cookies" "$panel_url/api/admin/permissions" | grep -q '"reports.view"'
+created_role="$(curl -fsS -b "$cookies" \
+  -H "$csrf_header: $csrf" -H 'Content-Type: application/json' \
+  --data "{\"displayName\":\"Smoke role $suffix\",\"description\":\"Smoke\",\"permissions\":[\"reports.view\"]}" \
+  "$panel_url/api/admin/roles")"
+role_id="$(json_value "$created_role" id)"
+test -n "$role_id"
+created_user="$(curl -fsS -b "$cookies" \
+  -H "$csrf_header: $csrf" -H 'Content-Type: application/json' \
+  --data "{\"username\":\"smoke-user-$suffix\",\"password\":\"smoke-password-1\",\"roleId\":\"$role_id\"}" \
+  "$panel_url/api/admin/users")"
+printf '%s' "$created_user" | grep -q "\"id\":\"$role_id\""
+delete_role_code="$(curl -sS -o /dev/null -w '%{http_code}' -X DELETE -b "$cookies" \
+  -H "$csrf_header: $csrf" "$panel_url/api/admin/roles/$role_id")"
+test "$delete_role_code" = "409"
+user_identity="$(curl -fsS -c "$user_cookies" "$panel_url/api/me")"
+user_csrf_header="$(json_value "$user_identity" csrfHeaderName)"
+user_csrf="$(json_value "$user_identity" csrfToken)"
+custom_login_code="$(curl -sS -o /dev/null -w '%{http_code}' \
+  -b "$user_cookies" -c "$user_cookies" -H "$user_csrf_header: $user_csrf" \
+  --data-urlencode "username=smoke-user-$suffix" \
+  --data-urlencode "password=smoke-password-1" "$panel_url/login")"
+test "$custom_login_code" = "204"
+curl -fsS -b "$user_cookies" "$panel_url/api/me" | grep -q '"reports.view"'
+test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$user_cookies" \
+  "$panel_url/api/reports")" = "200"
+test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$user_cookies" \
+  "$panel_url/api/admin/servers")" = "403"
 
 echo "Smoke: create server"
 created_server="$(curl -fsS -b "$cookies" \
   -H "$csrf_header: $csrf" -H 'Content-Type: application/json' \
-  --data "{\"name\":\"smoke-$(date +%s)\"}" \
+  --data "{\"name\":\"smoke-$suffix\"}" \
   "$panel_url/api/admin/servers")"
 server_id="$(json_value "$created_server" id)"
 api_key="$(json_value "$created_server" apiKey)"
@@ -85,7 +117,7 @@ test "$asset" = '{}'
 
 echo "Smoke: SPA index"
 curl -fsS "$panel_url/login" | grep -q 'id="root"'
-for route in board timeline "reports/$first_id" users servers; do
+for route in board timeline "reports/$first_id" users roles servers; do
   curl -fsS -b "$cookies" "$panel_url/$route" | grep -q 'id="root"'
 done
 unknown_api_code="$(curl -sS -o /dev/null -w '%{http_code}' \

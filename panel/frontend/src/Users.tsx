@@ -1,28 +1,39 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { api } from './api'
-import type { Role } from './api'
+import { api, can, type RoleSummary } from './api'
+import { useAuth } from './auth'
 
 type User = {
   id: string
   username: string
-  role: Role
+  role: RoleSummary
   enabled: boolean
   createdAt: string
   updatedAt: string
 }
 
-const ROLE_LABELS: Record<Role, string> = { ADMIN: 'Администратор', OPERATOR: 'Оператор' }
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
 
 export default function Users() {
+  const { me } = useAuth()
   const [users, setUsers] = useState<User[] | null>(null)
+  const [roles, setRoles] = useState<RoleSummary[]>([])
   const [error, setError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const canAssign = can(me, 'users.role.assign')
 
   const load = useCallback(() => {
-    api<User[]>('/api/admin/users').then(setUsers, (cause: Error) => setError(cause.message))
-  }, [])
+    Promise.all([
+      api<User[]>('/api/admin/users'),
+      canAssign ? api<RoleSummary[]>('/api/admin/roles') : Promise.resolve([]),
+    ]).then(
+      ([loadedUsers, loadedRoles]) => {
+        setUsers(loadedUsers)
+        setRoles(loadedRoles)
+      },
+      (cause: Error) => setError(cause.message),
+    )
+  }, [canAssign])
   useEffect(load, [load])
 
   // ponytail: пароль живёт только в форме/аргументах, в state не попадает
@@ -38,7 +49,7 @@ export default function Users() {
         body: JSON.stringify({
           username: data.get('username'),
           password: data.get('password'),
-          role: data.get('role'),
+          roleId: data.get('roleId'),
         }),
       })
       form.reset()
@@ -50,13 +61,16 @@ export default function Users() {
     }
   }
 
-  async function update(user: User, patch: { role?: Role; enabled?: boolean; password?: string }) {
+  async function update(
+    user: User,
+    patch: { roleId?: string; enabled?: boolean; password?: string },
+  ) {
     setPending(true)
     try {
       await api(`/api/admin/users/${user.id}`, {
         method: 'PUT',
         body: JSON.stringify({
-          role: patch.role ?? user.role,
+          roleId: patch.roleId ?? user.role.id,
           enabled: patch.enabled ?? user.enabled,
           password: patch.password ?? null,
         }),
@@ -85,28 +99,33 @@ export default function Users() {
   return (
     <>
       <h1>Пользователи</h1>
-      <form className="filters" onSubmit={create}>
-        <input name="username" aria-label="Имя пользователя" placeholder="Имя" required />
-        <input
-          name="password"
-          type="password"
-          aria-label="Пароль"
-          placeholder="Пароль"
-          autoComplete="new-password"
-          required
-        />
-        <select name="role" aria-label="Роль" defaultValue="OPERATOR">
-          {Object.entries(ROLE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
+      {can(me, 'users.create') && canAssign && roles.length > 0 && (
+        <form className="filters" onSubmit={create}>
+          <input name="username" aria-label="Имя пользователя" placeholder="Имя" required />
+          <input
+            name="password"
+            type="password"
+            aria-label="Пароль"
+            placeholder="Пароль"
+            autoComplete="new-password"
+            required
+          />
+          <select name="roleId" aria-label="Роль" required defaultValue="">
+            <option value="" disabled>
+              Выберите роль
             </option>
-          ))}
-        </select>
-        <button type="submit" disabled={pending}>
-          Создать
-        </button>
-        {formError && <p role="alert">{formError}</p>}
-      </form>
+            {roles.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.displayName}
+              </option>
+            ))}
+          </select>
+          <button type="submit" disabled={pending}>
+            Создать
+          </button>
+          {formError && <p role="alert">{formError}</p>}
+        </form>
+      )}
       {users.length === 0 && <p>Пользователей нет.</p>}
       {users.length > 0 && (
         <div className="table-scroll">
@@ -126,28 +145,40 @@ export default function Users() {
                 <tr key={user.id}>
                   <td>{user.username}</td>
                   <td>
-                    <select
-                      aria-label={`Роль ${user.username}`}
-                      value={user.role}
-                      disabled={pending}
-                      onChange={(event) => update(user, { role: event.target.value as Role })}
-                    >
-                      {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
+                    {canAssign ? (
+                      <select
+                        aria-label={`Роль ${user.username}`}
+                        value={user.role.id}
+                        disabled={pending}
+                        onChange={(event) => update(user, { roleId: event.target.value })}
+                      >
+                        {roles.map((role) => (
+                          <option key={role.id} value={role.id}>
+                            {role.displayName}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      user.role.displayName
+                    )}
                   </td>
                   <td>{user.enabled ? 'активен' : 'отключён'}</td>
                   <td>{dateFormat.format(new Date(user.createdAt))}</td>
                   <td className="actions">
-                    <button type="button" disabled={pending} onClick={() => toggle(user)}>
-                      {user.enabled ? 'Отключить' : 'Включить'}
-                    </button>
-                    <button type="button" disabled={pending} onClick={() => resetPassword(user)}>
-                      Сбросить пароль
-                    </button>
+                    {can(me, 'users.state.update') && (
+                      <button type="button" disabled={pending} onClick={() => toggle(user)}>
+                        {user.enabled ? 'Отключить' : 'Включить'}
+                      </button>
+                    )}
+                    {can(me, 'users.password.reset') && (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => resetPassword(user)}
+                      >
+                        Сбросить пароль
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

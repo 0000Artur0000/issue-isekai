@@ -146,6 +146,31 @@ select {
   margin-bottom: 16px;
 }
 
+.role-card {
+  max-width: 900px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.role-form {
+  display: grid;
+  gap: 12px;
+}
+
+.role-form > label {
+  display: grid;
+  gap: 4px;
+}
+
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 6px 12px;
+}
+
 /* Kanban */
 .board {
   display: flex;

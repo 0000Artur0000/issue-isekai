@@ -3,6 +3,8 @@ package ru.arzer0.issueisekai.panel.security;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -103,19 +105,24 @@ public class ApiSecurityConfiguration {
                         authorities.add(new SimpleGrantedAuthority(
                                 "ROLE_" + account.getRole().getCode()));
                         UserRoleRepository roles = roleRepositories.getIfAvailable();
-                        if (roles != null) {
-                            var permissions = UserRole.ADMIN.equals(account.getRole().getCode())
-                                    ? roles.findAllPermissionCodes()
-                                    : roles.findPermissionCodes(account.getRole().getId());
-                            permissions.stream()
-                                    .map(SimpleGrantedAuthority::new)
-                                    .forEach(authorities::add);
-                        }
+                        List<String> permissions = roles == null
+                                ? List.of()
+                                : UserRole.ADMIN.equals(account.getRole().getCode())
+                                        ? roles.findAllPermissionCodes()
+                                        : roles.findPermissionCodes(account.getRole().getId());
+                        permissions.stream()
+                                .map(SimpleGrantedAuthority::new)
+                                .forEach(authorities::add);
                         return new PanelUserDetails(
                                 account.getUsername(),
                                 account.getPasswordHash(),
                                 account.isEnabled(),
                                 account.getAuthVersion(),
+                                account.getRole().getId(),
+                                account.getRole().getCode(),
+                                account.getRole().getDisplayName(),
+                                account.getRole().isSystem(),
+                                Set.copyOf(permissions),
                                 authorities);
                     })
                     .orElseThrow(() -> new UsernameNotFoundException(username));

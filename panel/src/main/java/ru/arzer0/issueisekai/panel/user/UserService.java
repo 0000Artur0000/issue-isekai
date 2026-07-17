@@ -32,10 +32,10 @@ public class UserService {
     }
 
     @Transactional
-    public UserAccount create(String username, String password, String roleCode) {
+    public UserAccount create(String username, String password, UUID roleId) {
         String normalizedUsername = validateUsername(username);
         validatePassword(password);
-        UserRole role = role(roleCode);
+        UserRole role = role(roleId);
         UserAccountRepository repository = repository();
         if (repository.existsByUsername(normalizedUsername)) {
             throw new IllegalArgumentException("Username already exists");
@@ -52,8 +52,8 @@ public class UserService {
     }
 
     @Transactional
-    public UserAccount update(UUID id, String roleCode, boolean enabled, String password) {
-        UserRole role = role(roleCode);
+    public UserAccount update(UUID id, UUID roleId, boolean enabled, String password) {
+        UserRole role = role(roleId);
         UserAccountRepository repository = repository();
         UserAccount account = repository
                 .findById(id)
@@ -77,13 +77,11 @@ public class UserService {
         return repositories.getObject();
     }
 
-    private UserRole role(String code) {
-        if (!StringUtils.hasText(code)) {
+    private UserRole role(UUID id) {
+        if (id == null) {
             throw new IllegalArgumentException("Role is required");
         }
-        return roles.getObject()
-                .findByCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("Role not found"));
+        return roles.getObject().findById(id).orElseThrow(() -> new IllegalArgumentException("Role not found"));
     }
 
     private static String validateUsername(String username) {

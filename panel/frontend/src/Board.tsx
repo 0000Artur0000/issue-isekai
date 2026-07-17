@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
-import { api } from './api'
+import { api, can } from './api'
 import { useAuth } from './auth'
 import {
   FilterBar,
@@ -27,7 +27,11 @@ export default function Board() {
   const [columns, setColumns] = useState<Columns | null>(null)
   const [error, setError] = useState<string | null>(null)
   const query = filterQuery(params)
-  const admin = me.role === 'ADMIN'
+  const canMove =
+    can(me, 'reports.status.update') &&
+    can(me, 'reports.priority.update') &&
+    can(me, 'reports.assignee.update') &&
+    can(me, 'reports.duplicate.update')
 
   useEffect(() => {
     let cancelled = false
@@ -147,7 +151,7 @@ export default function Board() {
                             key={report.id}
                             draggableId={report.id}
                             index={index}
-                            isDragDisabled={!admin}
+                            isDragDisabled={!canMove}
                           >
                             {(dragProvided) => (
                               <div

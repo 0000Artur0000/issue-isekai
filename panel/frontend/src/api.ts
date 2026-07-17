@@ -1,11 +1,22 @@
-export type Role = 'ADMIN' | 'OPERATOR'
+export type RoleSummary = {
+  id: string
+  code: string
+  displayName: string
+  system: boolean
+}
 
 export type Me = {
   authenticated: boolean
   username: string | null
-  role: Role | null
+  role: RoleSummary | null
+  permissions: string[]
+  locale: string
   csrfHeaderName: string
   csrfToken: string
+}
+
+export function can(me: Me, permission: string): boolean {
+  return me.role?.code === 'ADMIN' || me.permissions.includes(permission)
 }
 
 export class ApiError extends Error {

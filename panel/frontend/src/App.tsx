@@ -8,10 +8,11 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom'
-import { ApiError, login, logout } from './api'
+import { ApiError, can, login, logout } from './api'
 import { useAuth } from './auth'
 import Board from './Board'
 import Report from './Report'
+import Roles from './Roles'
 import Servers from './Servers'
 import Timeline from './Timeline'
 import Users from './Users'
@@ -97,14 +98,11 @@ function Shell() {
       </a>
       <header>
         <nav aria-label="Основная навигация">
-          <NavLink to="/board">Доска</NavLink>
-          <NavLink to="/timeline">Лента</NavLink>
-          {me.role === 'ADMIN' && (
-            <>
-              <NavLink to="/users">Пользователи</NavLink>
-              <NavLink to="/servers">Серверы</NavLink>
-            </>
-          )}
+          {can(me, 'reports.view') && <NavLink to="/board">Доска</NavLink>}
+          {can(me, 'reports.view') && <NavLink to="/timeline">Лента</NavLink>}
+          {can(me, 'users.view') && <NavLink to="/users">Пользователи</NavLink>}
+          {can(me, 'roles.view') && <NavLink to="/roles">Роли</NavLink>}
+          {can(me, 'servers.view') && <NavLink to="/servers">Серверы</NavLink>}
         </nav>
         <span className="whoami">{me.username}</span>
         <button type="button" onClick={onLogout} disabled={pending}>
@@ -118,10 +116,10 @@ function Shell() {
   )
 }
 
-function RequireAdmin() {
+function RequirePermission({ permission }: { permission: string }) {
   const { me } = useAuth()
-  if (me.role !== 'ADMIN') {
-    return <p role="alert">Недостаточно прав: страница доступна только администраторам.</p>
+  if (!can(me, permission)) {
+    return <p role="alert">Недостаточно прав для просмотра страницы.</p>
   }
   return <Outlet />
 }
@@ -131,11 +129,18 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route element={<Shell />}>
-        <Route path="/board" element={<Board />} />
-        <Route path="/timeline" element={<Timeline />} />
-        <Route path="/reports/:id" element={<Report />} />
-        <Route element={<RequireAdmin />}>
+        <Route element={<RequirePermission permission="reports.view" />}>
+          <Route path="/board" element={<Board />} />
+          <Route path="/timeline" element={<Timeline />} />
+          <Route path="/reports/:id" element={<Report />} />
+        </Route>
+        <Route element={<RequirePermission permission="users.view" />}>
           <Route path="/users" element={<Users />} />
+        </Route>
+        <Route element={<RequirePermission permission="roles.view" />}>
+          <Route path="/roles" element={<Roles />} />
+        </Route>
+        <Route element={<RequirePermission permission="servers.view" />}>
           <Route path="/servers" element={<Servers />} />
         </Route>
       </Route>

@@ -29,8 +29,8 @@ class UserServiceTest {
         when(roles.getObject()).thenReturn(roleRepository);
         UserRole admin = role(UserRole.ADMIN);
         UserRole operator = role(UserRole.OPERATOR);
-        when(roleRepository.findByCode(UserRole.ADMIN)).thenReturn(Optional.of(admin));
-        when(roleRepository.findByCode(UserRole.OPERATOR)).thenReturn(Optional.of(operator));
+        when(roleRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(roleRepository.findById(operator.getId())).thenReturn(Optional.of(operator));
         when(passwords.encode("password-1")).thenReturn("hash-1");
         when(passwords.encode("password-2")).thenReturn("hash-2");
         var saved = new AtomicReference<UserAccount>();
@@ -41,7 +41,7 @@ class UserServiceTest {
         });
         var service = new UserService(repositories, roles, passwords);
 
-        service.create(" alice ", "password-1", UserRole.ADMIN);
+        service.create(" alice ", "password-1", admin.getId());
         UserAccount account = saved.get();
         assertEquals("alice", account.getUsername());
         assertEquals("hash-1", account.getPasswordHash());
@@ -49,7 +49,7 @@ class UserServiceTest {
         when(repository.findById(account.getId())).thenReturn(Optional.of(account));
         when(repository.findByRoleCodeAndEnabledTrue(UserRole.ADMIN))
                 .thenReturn(List.of(account, mock(UserAccount.class)));
-        service.update(account.getId(), UserRole.OPERATOR, false, "password-2");
+        service.update(account.getId(), operator.getId(), false, "password-2");
         assertEquals(UserRole.OPERATOR, account.getRole().getCode());
         assertEquals("hash-2", account.getPasswordHash());
         assertFalse(account.isEnabled());
@@ -67,7 +67,7 @@ class UserServiceTest {
                 .thenReturn(List.of(lastAdmin));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.update(lastAdmin.getId(), UserRole.OPERATOR, true, ""));
+                () -> service.update(lastAdmin.getId(), operator.getId(), true, ""));
     }
 
     private static UserRole role(String code) {

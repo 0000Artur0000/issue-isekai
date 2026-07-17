@@ -10,7 +10,7 @@ public class SpaFallbackController {
         "/login",
         "/board",
         "/timeline",
-        "/{route:reports|users|servers}",
+        "/{route:reports|users|roles|servers}",
         "/reports/{*path}"
     })
     public String index() {

@@ -15,6 +15,8 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
 
     boolean existsByUsername(String username);
 
+    boolean existsByRoleId(UUID roleId);
+
     Optional<UserAccount> findByUsername(String username);
 
     @Query(

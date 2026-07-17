@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { api } from './api'
+import { api, can } from './api'
 import { useAuth } from './auth'
 
 export type Status = 'NEW' | 'IN_PROGRESS' | 'RESOLVED' | 'REJECTED' | 'DUPLICATE'
@@ -183,9 +183,11 @@ export function ReportCard({
           Участники: {report.participants.map((participant) => participant.name).join(', ')}
         </p>
       )}
-      <button type="button" onClick={toggleParticipation} disabled={pending}>
-        {joined ? 'Покинуть' : 'Присоединиться'}
-      </button>
+      {can(me, 'reports.participate') && (
+        <button type="button" onClick={toggleParticipation} disabled={pending}>
+          {joined ? 'Покинуть' : 'Присоединиться'}
+        </button>
+      )}
     </article>
   )
 }

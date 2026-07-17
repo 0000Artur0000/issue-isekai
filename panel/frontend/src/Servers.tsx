@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { api } from './api'
+import { api, can } from './api'
+import { useAuth } from './auth'
 
 type Server = {
   id: string
@@ -40,6 +41,7 @@ function CopyButton({ value }: { value: string }) {
 }
 
 function Packs({ server }: { server: Server }) {
+  const { me } = useAuth()
   const [revisions, setRevisions] = useState<Revision[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -92,20 +94,22 @@ function Packs({ server }: { server: Server }) {
   return (
     <section className="packs" aria-label={`Resource packs сервера ${server.name}`}>
       <h3>Resource packs — {server.name}</h3>
-      <form className="filters" onSubmit={upload}>
-        <input name="displayName" aria-label="Название ревизии" placeholder="Название" required />
-        <input
-          name="minecraftVersion"
-          aria-label="Версия Minecraft"
-          defaultValue="26.1.2"
-          required
-        />
-        <input name="file" type="file" accept=".zip" aria-label="ZIP пака" required />
-        <button type="submit" disabled={pending}>
-          Загрузить
-        </button>
-        {uploadError && <p role="alert">{uploadError}</p>}
-      </form>
+      {can(me, 'servers.packs.upload') && (
+        <form className="filters" onSubmit={upload}>
+          <input name="displayName" aria-label="Название ревизии" placeholder="Название" required />
+          <input
+            name="minecraftVersion"
+            aria-label="Версия Minecraft"
+            defaultValue="26.1.2"
+            required
+          />
+          <input name="file" type="file" accept=".zip" aria-label="ZIP пака" required />
+          <button type="submit" disabled={pending}>
+            Загрузить
+          </button>
+          {uploadError && <p role="alert">{uploadError}</p>}
+        </form>
+      )}
       {revisions.length === 0 && <p>Ревизий ещё нет.</p>}
       {revisions.length > 0 && (
         <div className="table-scroll">
@@ -139,10 +143,12 @@ function Packs({ server }: { server: Server }) {
                   <td>
                     {revision.active ? (
                       'активна'
-                    ) : (
+                    ) : can(me, 'servers.packs.activate') ? (
                       <button type="button" disabled={pending} onClick={() => activate(revision)}>
                         Сделать активной
                       </button>
+                    ) : (
+                      'нет'
                     )}
                   </td>
                 </tr>
@@ -156,6 +162,7 @@ function Packs({ server }: { server: Server }) {
 }
 
 export default function Servers() {
+  const { me } = useAuth()
   const [servers, setServers] = useState<Server[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
@@ -225,13 +232,15 @@ export default function Servers() {
   return (
     <>
       <h1>Серверы</h1>
-      <form className="filters" onSubmit={create}>
-        <input name="name" aria-label="Имя сервера" placeholder="Имя сервера" required />
-        <button type="submit" disabled={pending}>
-          Создать
-        </button>
-        {formError && <p role="alert">{formError}</p>}
-      </form>
+      {can(me, 'servers.create') && (
+        <form className="filters" onSubmit={create}>
+          <input name="name" aria-label="Имя сервера" placeholder="Имя сервера" required />
+          <button type="submit" disabled={pending}>
+            Создать
+          </button>
+          {formError && <p role="alert">{formError}</p>}
+        </form>
+      )}
       {credentials && (
         <div className="api-key" role="alert">
           <p>
@@ -269,20 +278,24 @@ export default function Servers() {
                     {server.lastSeenAt ? dateFormat.format(new Date(server.lastSeenAt)) : '—'}
                   </td>
                   <td className="actions">
-                    <button type="button" disabled={pending} onClick={() => rotate(server)}>
-                      Перевыпустить ключ
-                    </button>
-                    {server.enabled && (
+                    {can(me, 'servers.keys.rotate') && (
+                      <button type="button" disabled={pending} onClick={() => rotate(server)}>
+                        Перевыпустить ключ
+                      </button>
+                    )}
+                    {server.enabled && can(me, 'servers.state.update') && (
                       <button type="button" disabled={pending} onClick={() => disable(server)}>
                         Отключить
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => setPacksFor(packsFor?.id === server.id ? null : server)}
-                    >
-                      {packsFor?.id === server.id ? 'Скрыть паки' : 'Паки'}
-                    </button>
+                    {can(me, 'servers.packs.view') && (
+                      <button
+                        type="button"
+                        onClick={() => setPacksFor(packsFor?.id === server.id ? null : server)}
+                      >
+                        {packsFor?.id === server.id ? 'Скрыть паки' : 'Паки'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
