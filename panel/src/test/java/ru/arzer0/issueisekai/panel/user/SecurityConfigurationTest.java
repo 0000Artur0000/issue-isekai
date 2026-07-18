@@ -101,7 +101,9 @@ class SecurityConfigurationTest {
         mvc.perform(post("/api/v1/reports")
                         .contentType("application/json")
                         .content("{}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.args").isArray());
         ServerInstance server = mock(ServerInstance.class);
         UUID reportId = UUID.randomUUID();
         when(servers.findEnabledByApiKey("server-key")).thenReturn(Optional.of(server));
@@ -121,15 +123,45 @@ class SecurityConfigurationTest {
                 Instant.parse("2026-07-15T00:00:00Z"),
                 "26.1.2");
         mvc.perform(post("/api/v1/reports")
+                        .contentType("application/json")
+                        .content(json.writeValueAsBytes(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_SERVER_KEY"))
+                .andExpect(jsonPath("$.args").isArray());
+        mvc.perform(post("/api/v1/reports")
                         .header("X-Server-Key", "server-key")
                         .contentType("application/json")
                         .content(json.writeValueAsBytes(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.report_id").value(reportId.toString()));
+        when(servers.heartbeat("server-key", true, 12, 100)).thenReturn(true);
+        mvc.perform(post("/api/v1/heartbeat")
+                        .header("X-Server-Key", "server-key")
+                        .contentType("application/json")
+                        .content("""
+                                {"online":true,"onlinePlayers":12,"maxPlayers":100}
+                                """))
+                .andExpect(status().isNoContent());
+        mvc.perform(post("/api/v1/heartbeat")
+                        .header("X-Server-Key", "disabled-key")
+                        .contentType("application/json")
+                        .content("""
+                                {"online":true,"onlinePlayers":12,"maxPlayers":100}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_SERVER_KEY"));
+        mvc.perform(post("/api/v1/heartbeat")
+                        .header("X-Server-Key", "server-key")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_HEARTBEAT"));
         mvc.perform(post("/api/v1/reports")
                         .contentType("application/json")
                         .content(new byte[4 * 1024 * 1024 + 1]))
                 .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.code").value("PAYLOAD_TOO_LARGE"))
+                .andExpect(jsonPath("$.args").isArray())
                 .andExpect(jsonPath("$.message").value("Payload exceeds 4 MiB"));
         mvc.perform(get("/api/me"))
                 .andExpect(header().string(

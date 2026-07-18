@@ -1,6 +1,10 @@
 package ru.arzer0.issueisekai.panel.api;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,6 +33,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -156,6 +161,8 @@ class ReportApiControllerTest {
         mvc.perform(get("/api/reports/{id}", unknown)
                         .with(operator("reports.view")))
                 .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("REPORT_NOT_FOUND"))
+                .andExpect(jsonPath("$.args").isArray())
                 .andExpect(jsonPath("$.message").value("Report not found"));
     }
 
@@ -186,16 +193,25 @@ class ReportApiControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(reports).update(
-                reportId,
-                ReportQueueService.Status.IN_PROGRESS,
-                ReportQueueService.Priority.HIGH,
-                null,
-                null,
-                "admin");
+                eq(reportId),
+                eq(ReportQueueService.Status.IN_PROGRESS),
+                eq(ReportQueueService.Priority.HIGH),
+                isNull(),
+                isNull(),
+                argThat(actor -> actor.getName().equals("admin")));
     }
 
     @Test
-    void operatorCannotUpdateWorkflow() throws Exception {
+    void workflowEndpointAcceptsOnlyRelevantPermission() throws Exception {
+        mvc.perform(put("/api/reports/{id}", reportId)
+                        .with(operator("reports.status.update"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status": "RESOLVED", "priority": "NORMAL"}
+                                """))
+                .andExpect(status().isNoContent());
+
         mvc.perform(put("/api/reports/{id}", reportId)
                         .with(user("operator").roles("OPERATOR"))
                         .with(csrf())
@@ -204,6 +220,24 @@ class ReportApiControllerTest {
                                 {"status": "RESOLVED", "priority": "NORMAL"}
                                 """))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void returnsFieldPermissionFailureAsJsonForbidden() throws Exception {
+        doThrow(new AccessDeniedException("Missing permission"))
+                .when(reports)
+                .update(any(), any(), any(), isNull(), isNull(), any());
+
+        mvc.perform(put("/api/reports/{id}", reportId)
+                        .with(operator("reports.status.update"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status": "RESOLVED", "priority": "NORMAL"}
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.args").isArray());
     }
 
     @Test

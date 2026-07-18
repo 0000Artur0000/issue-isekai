@@ -8,38 +8,51 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import ru.arzer0.issueisekai.plugin.PluginMessages;
 import ru.arzer0.issueisekai.plugin.api.CreateReportRequest;
 
 class BugReportCommandTest {
+    @TempDir
+    Path directory;
+
     @Test
-    void routesSelfTargetConsolePermissionAndOfflineCases() {
+    void routesSelfTargetConsolePermissionAndOfflineCases() throws IOException {
         var messages = new ArrayList<Component>();
+        PluginMessages language = language();
         Player self = sender(Player.class, false, messages);
         Player target = sender(Player.class, false, messages);
-        CommandSender denied = sender(CommandSender.class, false, messages);
+        Player denied = sender(Player.class, false, messages);
         CommandSender console = sender(CommandSender.class, true, messages);
 
-        assertSame(self, BugReportCommand.target(self, new String[0], name -> target));
-        assertNull(BugReportCommand.target(denied, new String[] {"Alex"}, name -> target));
+        assertSame(self, BugReportCommand.target(self, new String[0], name -> target, language));
+        assertNull(BugReportCommand.target(denied, new String[] {"Alex"}, name -> target, language));
         assertSame(
                 target,
-                BugReportCommand.target(console, new String[] {"Alex"}, name -> target));
-        assertNull(BugReportCommand.target(console, new String[] {"Offline"}, name -> null));
-        assertNull(BugReportCommand.target(console, new String[0], name -> target));
+                BugReportCommand.target(console, new String[] {"Alex"}, name -> target, language));
         assertNull(BugReportCommand.target(
-                console, new String[] {"Alex", "extra"}, name -> target));
+                console, new String[] {"Offline"}, name -> null, language));
+        assertNull(BugReportCommand.target(console, new String[0], name -> target, language));
+        assertNull(BugReportCommand.target(
+                console, new String[] {"Alex", "extra"}, name -> target, language));
 
         assertEquals(4, messages.size());
-        assertTrue(messages.contains(Component.text("Player is not online: Offline")));
-        assertTrue(messages.contains(Component.text("Usage: /bug <online player>")));
+        List<String> plain = messages.stream()
+                .map(PlainTextComponentSerializer.plainText()::serialize)
+                .toList();
+        assertTrue(plain.contains("Player Offline is not online."));
+        assertTrue(plain.contains("Usage: /bug <online player>"));
     }
 
     @Test
@@ -50,8 +63,11 @@ class BugReportCommandTest {
         }
 
         assertTrue(pluginYaml.contains("- bug"));
+        assertTrue(pluginYaml.contains("- bugreprt"));
+        assertTrue(pluginYaml.contains("permission: bugreport.submit"));
         assertTrue(pluginYaml.contains("bugreport.submit:\n    default: true"));
         assertTrue(pluginYaml.contains("bugreport.open.others:\n    default: op"));
+        assertTrue(pluginYaml.contains("bugreport.cooldown.bypass:\n    default: op"));
     }
 
     @Test
@@ -117,5 +133,13 @@ class BugReportCommandTest {
             return '\0';
         }
         return 0;
+    }
+
+    private PluginMessages language() throws IOException {
+        Path lang = Files.createDirectories(directory.resolve("lang"));
+        try (var input = getClass().getResourceAsStream("/lang/en_US.yml")) {
+            Files.copy(input, lang.resolve("en_US.yml"));
+        }
+        return PluginMessages.load(directory, "en_US", Logger.getAnonymousLogger());
     }
 }

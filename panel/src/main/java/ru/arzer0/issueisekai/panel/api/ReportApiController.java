@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -72,19 +73,19 @@ public class ReportApiController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize(
             "hasRole('ADMIN') or "
-                    + "(hasAuthority('reports.status.update') "
-                    + "and hasAuthority('reports.priority.update') "
-                    + "and hasAuthority('reports.assignee.update') "
-                    + "and hasAuthority('reports.duplicate.update'))")
+                    + "hasAnyAuthority('reports.status.update', 'reports.priority.update', "
+                    + "'reports.assignee.update', 'reports.duplicate.update')")
     public void update(
-            @PathVariable UUID id, @RequestBody UpdateReportRequest request, Principal principal) {
+            @PathVariable UUID id,
+            @RequestBody UpdateReportRequest request,
+            Authentication actor) {
         reports.update(
                 id,
                 request.status(),
                 request.priority(),
                 request.assigneeId(),
                 request.duplicateOfId(),
-                principal.getName());
+                actor);
     }
 
     @PostMapping("/reports/{id}/participants")
@@ -113,14 +114,14 @@ public class ReportApiController {
 
     @ExceptionHandler(ReportNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ErrorResponse notFound(ReportNotFoundException exception) {
-        return new ErrorResponse(exception.getMessage());
+    public ApiErrorResponse notFound(ReportNotFoundException exception) {
+        return ApiErrorResponse.of("REPORT_NOT_FOUND", exception);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse invalid(IllegalArgumentException exception) {
-        return new ErrorResponse(exception.getMessage());
+    public ApiErrorResponse invalid(IllegalArgumentException exception) {
+        return ApiErrorResponse.of("INVALID_REPORT", exception);
     }
 
     public record ReportResponse(
@@ -134,6 +135,4 @@ public class ReportApiController {
 
     public record UpdateReportRequest(
             Status status, Priority priority, UUID assigneeId, UUID duplicateOfId) {}
-
-    public record ErrorResponse(String message) {}
 }

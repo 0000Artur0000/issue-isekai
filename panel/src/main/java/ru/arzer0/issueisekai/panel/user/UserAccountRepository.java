@@ -13,6 +13,10 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<UserAccount> findByRoleCodeAndEnabledTrue(String roleCode);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT user FROM UserAccount user WHERE user.id = :id")
+    Optional<UserAccount> findLockedById(@Param("id") UUID id);
+
     boolean existsByUsername(String username);
 
     boolean existsByRoleId(UUID roleId);

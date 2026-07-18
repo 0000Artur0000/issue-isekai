@@ -6,8 +6,12 @@ type Server = {
   id: string
   name: string
   enabled: boolean
+  state: 'DISABLED' | 'NEVER_CONNECTED' | 'ONLINE' | 'OFFLINE'
+  onlinePlayers: number | null
+  maxPlayers: number | null
   createdAt: string
-  lastSeenAt: string | null
+  lastReportAt: string | null
+  lastHeartbeatAt: string | null
 }
 
 type Revision = {
@@ -27,6 +31,13 @@ const dateFormat = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',
   timeStyle: 'short',
 })
+
+const STATE_LABELS: Record<Server['state'], string> = {
+  DISABLED: 'отключён',
+  NEVER_CONNECTED: 'не подключался',
+  ONLINE: 'онлайн',
+  OFFLINE: 'офлайн',
+}
 
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false)
@@ -173,7 +184,18 @@ export default function Servers() {
   const load = useCallback(() => {
     api<Server[]>('/api/admin/servers').then(setServers, (cause: Error) => setError(cause.message))
   }, [])
-  useEffect(load, [load])
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+    refresh()
+    const timer = window.setInterval(refresh, 30_000)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [load])
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -213,11 +235,17 @@ export default function Servers() {
     }
   }
 
-  async function disable(server: Server) {
-    if (!window.confirm(`Отключить сервер ${server.name}? Ingest перестанет приниматься.`)) return
+  async function setEnabled(server: Server, enabled: boolean) {
+    if (
+      server.enabled &&
+      !window.confirm(`Отключить сервер ${server.name}? Ingest перестанет приниматься.`)
+    )
+      return
     setPending(true)
     try {
-      await api(`/api/admin/servers/${server.id}/disable`, { method: 'POST' })
+      await api(`/api/admin/servers/${server.id}/${enabled ? 'enable' : 'disable'}`, {
+        method: 'POST',
+      })
       load()
     } catch (cause) {
       window.alert((cause as Error).message)
@@ -263,8 +291,10 @@ export default function Servers() {
               <tr>
                 <th scope="col">Имя</th>
                 <th scope="col">Статус</th>
+                <th scope="col">Игроки</th>
                 <th scope="col">Создан</th>
-                <th scope="col">Последний ingest</th>
+                <th scope="col">Последняя связь</th>
+                <th scope="col">Последний репорт</th>
                 <th scope="col">Действия</th>
               </tr>
             </thead>
@@ -272,10 +302,24 @@ export default function Servers() {
               {servers.map((server) => (
                 <tr key={server.id}>
                   <td>{server.name}</td>
-                  <td>{server.enabled ? 'активен' : 'отключён'}</td>
+                  <td>
+                    <span className={`badge server-${server.state.toLowerCase()}`}>
+                      {STATE_LABELS[server.state]}
+                    </span>
+                  </td>
+                  <td>
+                    {server.state === 'ONLINE'
+                      ? `${server.onlinePlayers ?? 0}/${server.maxPlayers ?? 0}`
+                      : '—'}
+                  </td>
                   <td>{dateFormat.format(new Date(server.createdAt))}</td>
                   <td>
-                    {server.lastSeenAt ? dateFormat.format(new Date(server.lastSeenAt)) : '—'}
+                    {server.lastHeartbeatAt
+                      ? dateFormat.format(new Date(server.lastHeartbeatAt))
+                      : '—'}
+                  </td>
+                  <td>
+                    {server.lastReportAt ? dateFormat.format(new Date(server.lastReportAt)) : '—'}
                   </td>
                   <td className="actions">
                     {can(me, 'servers.keys.rotate') && (
@@ -283,9 +327,13 @@ export default function Servers() {
                         Перевыпустить ключ
                       </button>
                     )}
-                    {server.enabled && can(me, 'servers.state.update') && (
-                      <button type="button" disabled={pending} onClick={() => disable(server)}>
-                        Отключить
+                    {can(me, 'servers.state.update') && (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => setEnabled(server, !server.enabled)}
+                      >
+                        {server.enabled ? 'Отключить' : 'Включить'}
                       </button>
                     )}
                     {can(me, 'servers.packs.view') && (

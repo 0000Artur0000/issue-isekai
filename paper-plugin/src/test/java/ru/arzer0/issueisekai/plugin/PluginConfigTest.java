@@ -18,6 +18,7 @@ class PluginConfigTest {
 
         assertEquals("http://127.0.0.1:8080", config.panelUrl().toString());
         assertEquals("replace-me", config.apiKey());
+        assertEquals("ru_RU", config.language());
         assertEquals(List.of("gameplay", "performance", "exploit", "other"),
                 config.categories().stream().map(PluginConfig.Category::id).toList());
         assertEquals(20, config.maxDeliveriesPerRun());
@@ -28,6 +29,7 @@ class PluginConfigTest {
     void rejectsInvalidValues() {
         assertInvalid(config -> config.set("panel-url", "not a url"));
         assertInvalid(config -> config.set("api-key", " "));
+        assertInvalid(config -> config.set("language", " "));
         assertInvalid(config -> config.set("categories", List.of()));
         assertInvalid(config -> config.set("categories", List.of(Map.of("id", "Invalid ID", "title", "Invalid"))));
         assertInvalid(config -> config.set("categories", List.of(
@@ -40,6 +42,14 @@ class PluginConfigTest {
                 "cooldown-seconds")) {
             assertInvalid(config -> config.set(key, 0));
         }
+    }
+
+    @Test
+    void defaultsOldConfigToRussian() {
+        YamlConfiguration config = defaults();
+        config.set("language", null);
+
+        assertEquals("ru_RU", PluginConfig.load(config).language());
     }
 
     private static void assertInvalid(Consumer<YamlConfiguration> mutation) {

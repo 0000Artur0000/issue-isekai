@@ -1,0 +1,26 @@
+dialog:
+  title: "<gold>Сообщить об ошибке</gold>"
+  body: "Опишите ожидаемый результат, что произошло и как воспроизвести ошибку."
+  category: "Категория"
+  description: "Описание"
+  submit: "<green>Отправить</green>"
+  submit-tooltip: "Добавить баг-репорт в очередь"
+  cancel: "<gray>Отмена</gray>"
+  cancel-tooltip: "Закрыть без отправки"
+message:
+  usage-console: '<red>Использование: /bug \<игрок онлайн></red>'
+  usage-player: "<red>Использование: /bug [игрок онлайн]</red>"
+  no-permission-other: "<red>Нет права открывать баг-репорт другому игроку.</red>"
+  player-offline: "<red>Игрок <white><player></white> не в сети.</red>"
+  cancelled: "<yellow>Баг-репорт отменён.</yellow>"
+  queued: "<green>Баг-репорт добавлен в очередь.</green>"
+  queue-failed: "<red>Не удалось добавить баг-репорт в очередь. Попробуйте позже.</red>"
+validation:
+  unknown-category: "<red>Неизвестная категория.</red>"
+  description-length: "<red>Описание должно содержать от 10 до 1000 символов.</red>"
+  cooldown: "<red>Подождите перед повторной отправкой.</red>"
+category:
+  gameplay: "Игровой процесс"
+  performance: "Производительность"
+  exploit: "Эксплойт"
+  other: "Другое"

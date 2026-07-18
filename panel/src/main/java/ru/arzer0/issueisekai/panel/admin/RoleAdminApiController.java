@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import ru.arzer0.issueisekai.panel.api.ApiErrorResponse;
 import ru.arzer0.issueisekai.panel.user.RoleService;
 import ru.arzer0.issueisekai.panel.user.RoleService.RoleInUseException;
 import ru.arzer0.issueisekai.panel.user.RoleService.RoleNotFoundException;
@@ -74,20 +75,20 @@ public class RoleAdminApiController {
 
     @ExceptionHandler(RoleNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ErrorResponse notFound(RoleNotFoundException exception) {
-        return new ErrorResponse("ROLE_NOT_FOUND", exception.getMessage());
+    public ApiErrorResponse notFound(RoleNotFoundException exception) {
+        return ApiErrorResponse.of("ROLE_NOT_FOUND", exception);
     }
 
     @ExceptionHandler(RoleInUseException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ErrorResponse inUse(RoleInUseException exception) {
-        return new ErrorResponse("ROLE_IN_USE", exception.getMessage());
+    public ApiErrorResponse inUse(RoleInUseException exception) {
+        return ApiErrorResponse.of("ROLE_IN_USE", exception);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse invalid(IllegalArgumentException exception) {
-        return new ErrorResponse("INVALID_ROLE", exception.getMessage());
+    public ApiErrorResponse invalid(IllegalArgumentException exception) {
+        return ApiErrorResponse.of("INVALID_ROLE", exception);
     }
 
     private RoleResponse response(UserRole role) {
@@ -116,6 +117,4 @@ public class RoleAdminApiController {
             Set<String> permissions,
             Instant createdAt,
             Instant updatedAt) {}
-
-    public record ErrorResponse(String code, String message) {}
 }

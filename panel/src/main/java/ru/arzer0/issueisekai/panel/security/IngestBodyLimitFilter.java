@@ -53,7 +53,9 @@ public class IngestBodyLimitFilter extends OncePerRequestFilter {
         response.setStatus(HttpStatus.PAYLOAD_TOO_LARGE.value());
         response.setContentType("application/json");
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.getWriter().write("{\"message\":\"Payload exceeds 4 MiB\"}");
+        response.getWriter()
+                .write("{\"code\":\"PAYLOAD_TOO_LARGE\",\"message\":"
+                        + "\"Payload exceeds 4 MiB\",\"args\":[]}");
     }
 
     private static final class CachedBodyRequest extends HttpServletRequestWrapper {

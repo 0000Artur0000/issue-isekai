@@ -48,9 +48,7 @@ public class ResourcePackAssetController {
 
     @ExceptionHandler({RevisionNotFoundException.class, AssetNotFoundException.class})
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ErrorResponse notFound(IllegalArgumentException exception) {
-        return new ErrorResponse(exception.getMessage());
+    public ApiErrorResponse notFound(IllegalArgumentException exception) {
+        return ApiErrorResponse.of("RESOURCE_PACK_ASSET_NOT_FOUND", exception);
     }
-
-    public record ErrorResponse(String message) {}
 }

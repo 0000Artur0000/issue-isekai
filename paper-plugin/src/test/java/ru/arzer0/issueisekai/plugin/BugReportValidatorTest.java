@@ -2,16 +2,33 @@ package ru.arzer0.issueisekai.plugin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class BugReportValidatorTest {
+    @Test
+    void bypassesCooldownWithoutChangingIt() {
+        var validator = new BugReportValidator(
+                List.of(new PluginConfig.Category("gameplay", "Gameplay")),
+                Duration.ofMinutes(1));
+        UUID playerId = UUID.randomUUID();
+
+        assertTrue(validator.validate(playerId, "gameplay", "valid report").accepted());
+        assertTrue(validator
+                .validate(playerId, "gameplay", "valid report", true)
+                .accepted());
+        assertFalse(validator.validate(playerId, "gameplay", "valid report").accepted());
+    }
+
     @ParameterizedTest
     @MethodSource("cases")
     void validatesBoundariesAndCooldown(

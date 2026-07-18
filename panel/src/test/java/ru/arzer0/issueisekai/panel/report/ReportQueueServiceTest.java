@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,6 +25,9 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 class ReportQueueServiceTest {
@@ -112,7 +116,7 @@ class ReportQueueServiceTest {
                         ReportQueueService.Priority.NORMAL,
                         null,
                         reportId,
-                        "operator"));
+                        actor("reports.duplicate.update")));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> service.update(
@@ -121,7 +125,17 @@ class ReportQueueServiceTest {
                         ReportQueueService.Priority.NORMAL,
                         null,
                         UUID.randomUUID(),
-                        "operator"));
+                        actor("reports.duplicate.update")));
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.update(
+                        reportId,
+                        ReportQueueService.Status.RESOLVED,
+                        ReportQueueService.Priority.NORMAL,
+                        null,
+                        null,
+                        actor("reports.status.update")));
 
         var eventWrites = new AtomicInteger();
         when(database.update(anyString(), any(MapSqlParameterSource.class)))
@@ -145,7 +159,7 @@ class ReportQueueServiceTest {
                 ReportQueueService.Priority.NORMAL,
                 null,
                 UUID.randomUUID(),
-                "operator");
+                actor("reports.status.update", "reports.duplicate.update"));
         assertEquals(1, eventWrites.get());
     }
 
@@ -295,5 +309,12 @@ class ReportQueueServiceTest {
         assertEquals("helmet", snapshot.slots().get(1).get("slot").asText());
         assertEquals(revisionId, snapshot.packRevision().id());
         assertFalse(snapshot.slots().toString().contains("must-not-leak"));
+    }
+
+    private static UsernamePasswordAuthenticationToken actor(String... permissions) {
+        return new UsernamePasswordAuthenticationToken(
+                "operator",
+                "",
+                Arrays.stream(permissions).map(SimpleGrantedAuthority::new).toList());
     }
 }

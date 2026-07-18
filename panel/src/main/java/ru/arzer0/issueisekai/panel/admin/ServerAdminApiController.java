@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import ru.arzer0.issueisekai.panel.api.ApiErrorResponse;
 import ru.arzer0.issueisekai.panel.server.ResourcePackService;
 import ru.arzer0.issueisekai.panel.server.ResourcePackService.Revision;
 import ru.arzer0.issueisekai.panel.server.ResourcePackService.RevisionNotFoundException;
@@ -38,7 +39,8 @@ public class ServerAdminApiController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasAuthority('servers.view')")
     public List<ServerResponse> list() {
-        return servers.list().stream().map(ServerResponse::from).toList();
+        Instant now = Instant.now();
+        return servers.list().stream().map(server -> ServerResponse.from(server, now)).toList();
     }
 
     @PostMapping
@@ -61,6 +63,13 @@ public class ServerAdminApiController {
     @PreAuthorize("hasRole('ADMIN') or hasAuthority('servers.state.update')")
     public void disable(@PathVariable UUID id) {
         servers.disable(id);
+    }
+
+    @PostMapping("/{id}/enable")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('servers.state.update')")
+    public void enable(@PathVariable UUID id) {
+        servers.enable(id);
     }
 
     @GetMapping("/{id}/resource-packs")
@@ -89,16 +98,22 @@ public class ServerAdminApiController {
         resourcePacks.activate(id, revisionId);
     }
 
-    @ExceptionHandler({ServerNotFoundException.class, RevisionNotFoundException.class})
+    @ExceptionHandler(ServerNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ErrorResponse notFound(IllegalArgumentException exception) {
-        return new ErrorResponse(exception.getMessage());
+    public ApiErrorResponse serverNotFound(ServerNotFoundException exception) {
+        return ApiErrorResponse.of("SERVER_NOT_FOUND", exception);
+    }
+
+    @ExceptionHandler(RevisionNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse revisionNotFound(RevisionNotFoundException exception) {
+        return ApiErrorResponse.of("RESOURCE_PACK_NOT_FOUND", exception);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse invalid(IllegalArgumentException exception) {
-        return new ErrorResponse(exception.getMessage());
+    public ApiErrorResponse invalid(IllegalArgumentException exception) {
+        return ApiErrorResponse.of("INVALID_SERVER", exception);
     }
 
     public record CreateServerRequest(String name) {}
@@ -108,16 +123,26 @@ public class ServerAdminApiController {
     public record ApiKeyResponse(String apiKey) {}
 
     public record ServerResponse(
-            UUID id, String name, boolean enabled, Instant createdAt, Instant lastSeenAt) {
-        private static ServerResponse from(ServerInstance server) {
+            UUID id,
+            String name,
+            boolean enabled,
+            ServerInstance.State state,
+            Integer onlinePlayers,
+            Integer maxPlayers,
+            Instant createdAt,
+            Instant lastReportAt,
+            Instant lastHeartbeatAt) {
+        private static ServerResponse from(ServerInstance server, Instant now) {
             return new ServerResponse(
                     server.getId(),
                     server.getName(),
                     server.isEnabled(),
+                    server.state(now),
+                    server.getOnlinePlayers(),
+                    server.getMaxPlayers(),
                     server.getCreatedAt(),
-                    server.getLastSeenAt());
+                    server.getLastReportAt(),
+                    server.getLastHeartbeatAt());
         }
     }
-
-    public record ErrorResponse(String message) {}
 }

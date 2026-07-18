@@ -116,9 +116,11 @@ function SourceLink({ url }: { url: string }) {
 }
 
 function WorkflowForm({ report, onSaved }: { report: Detail; onSaved: () => void }) {
+  const { me } = useAuth()
   const [choices, setChoices] = useState<Choices | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const canDuplicate = can(me, 'reports.duplicate.update')
 
   useEffect(() => {
     api<Choices>('/api/choices').then(setChoices, () => setChoices(null))
@@ -133,10 +135,14 @@ function WorkflowForm({ report, onSaved }: { report: Detail; onSaved: () => void
       await api(`/api/reports/${report.id}`, {
         method: 'PUT',
         body: JSON.stringify({
-          status: data.get('status'),
-          priority: data.get('priority'),
-          assigneeId: String(data.get('assigneeId') ?? '') || null,
-          duplicateOfId: String(data.get('duplicateOfId') ?? '').trim() || null,
+          status: data.get('status') ?? report.status,
+          priority: data.get('priority') ?? report.priority,
+          assigneeId: data.has('assigneeId')
+            ? String(data.get('assigneeId') ?? '') || null
+            : report.assigneeId,
+          duplicateOfId: data.has('duplicateOfId')
+            ? String(data.get('duplicateOfId') ?? '').trim() || null
+            : report.duplicateOfId,
         }),
       })
       onSaved()
@@ -151,9 +157,16 @@ function WorkflowForm({ report, onSaved }: { report: Detail; onSaved: () => void
     <form className="workflow" onSubmit={submit} key={report.updatedAt}>
       <label>
         Статус
-        <select name="status" defaultValue={report.status}>
+        <select
+          name="status"
+          defaultValue={report.status}
+          disabled={
+            !can(me, 'reports.status.update') ||
+            (report.status === 'DUPLICATE' && !canDuplicate)
+          }
+        >
           {STATUSES.map((status) => (
-            <option key={status} value={status}>
+            <option key={status} value={status} disabled={status === 'DUPLICATE' && !canDuplicate}>
               {STATUS_LABELS[status]}
             </option>
           ))}
@@ -161,7 +174,11 @@ function WorkflowForm({ report, onSaved }: { report: Detail; onSaved: () => void
       </label>
       <label>
         Приоритет
-        <select name="priority" defaultValue={report.priority}>
+        <select
+          name="priority"
+          defaultValue={report.priority}
+          disabled={!can(me, 'reports.priority.update')}
+        >
           {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
@@ -171,7 +188,11 @@ function WorkflowForm({ report, onSaved }: { report: Detail; onSaved: () => void
       </label>
       <label>
         Ответственный
-        <select name="assigneeId" defaultValue={report.assigneeId ?? ''}>
+        <select
+          name="assigneeId"
+          defaultValue={report.assigneeId ?? ''}
+          disabled={!can(me, 'reports.assignee.update')}
+        >
           <option value="">—</option>
           {choices?.assignees.map((assignee: Choice) => (
             <option key={assignee.id} value={assignee.id}>
@@ -182,7 +203,11 @@ function WorkflowForm({ report, onSaved }: { report: Detail; onSaved: () => void
       </label>
       <label>
         UUID оригинала (для дубликата)
-        <input name="duplicateOfId" defaultValue={report.duplicateOfId ?? ''} />
+        <input
+          name="duplicateOfId"
+          defaultValue={report.duplicateOfId ?? ''}
+          disabled={!canDuplicate}
+        />
       </label>
       {error && <p role="alert">{error}</p>}
       <button type="submit" disabled={pending}>
@@ -271,12 +296,12 @@ export default function Report() {
           )}
         </dd>
       </dl>
-      {can(me, 'reports.status.update') &&
-        can(me, 'reports.priority.update') &&
-        can(me, 'reports.assignee.update') &&
-        can(me, 'reports.duplicate.update') && (
-          <WorkflowForm report={report} onSaved={load} />
-        )}
+      {(can(me, 'reports.status.update') ||
+        can(me, 'reports.priority.update') ||
+        can(me, 'reports.assignee.update') ||
+        can(me, 'reports.duplicate.update')) && (
+        <WorkflowForm report={report} onSaved={load} />
+      )}
       {can(me, 'reports.inventory.view') && <Inventory reportId={report.id} />}
       <section aria-label="История">
         <h2>История</h2>

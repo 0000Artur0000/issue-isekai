@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,14 +18,17 @@ public class UserService {
     private final ObjectProvider<UserAccountRepository> repositories;
     private final ObjectProvider<UserRoleRepository> roles;
     private final PasswordEncoder passwordEncoder;
+    private final RoleService roleService;
 
     public UserService(
             ObjectProvider<UserAccountRepository> repositories,
             ObjectProvider<UserRoleRepository> roles,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            RoleService roleService) {
         this.repositories = repositories;
         this.roles = roles;
         this.passwordEncoder = passwordEncoder;
+        this.roleService = roleService;
     }
 
     @Transactional(readOnly = true)
@@ -52,12 +57,27 @@ public class UserService {
     }
 
     @Transactional
-    public UserAccount update(UUID id, UUID roleId, boolean enabled, String password) {
-        UserRole role = role(roleId);
+    public UserAccount update(
+            UUID id,
+            UUID roleId,
+            boolean enabled,
+            String password,
+            Authentication actor) {
         UserAccountRepository repository = repository();
         UserAccount account = repository
-                .findById(id)
+                .findLockedById(id)
                 .orElseThrow(UserNotFoundException::new);
+        if (roleId == null) {
+            throw new IllegalArgumentException("Role is required");
+        }
+        boolean roleChanged = !account.getRole().getId().equals(roleId);
+        boolean passwordChanged = StringUtils.hasText(password);
+        require(actor, roleChanged, "users.role.assign");
+        require(actor, account.isEnabled() != enabled, "users.state.update");
+        require(actor, passwordChanged, "users.password.reset");
+        UserRole role = roleChanged
+                ? roleService.requireAssignable(actor, roleId)
+                : account.getRole();
         if (account.isEnabled()
                 && UserRole.ADMIN.equals(account.getRole().getCode())
                 && (!enabled || !UserRole.ADMIN.equals(role.getCode()))
@@ -65,12 +85,21 @@ public class UserService {
             throw new IllegalArgumentException("At least one enabled admin is required");
         }
         String passwordHash = account.getPasswordHash();
-        if (StringUtils.hasText(password)) {
+        if (passwordChanged) {
             validatePassword(password);
             passwordHash = passwordEncoder.encode(password);
         }
         account.update(passwordHash, role, enabled, Instant.now());
         return repository.saveAndFlush(account);
+    }
+
+    private static void require(Authentication actor, boolean changed, String permission) {
+        if (changed
+                && actor.getAuthorities().stream().noneMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN")
+                                || authority.getAuthority().equals(permission))) {
+            throw new AccessDeniedException("Missing permission: " + permission);
+        }
     }
 
     private UserAccountRepository repository() {

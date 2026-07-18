@@ -80,7 +80,7 @@ class AdminControllerTest {
         when(users.list()).thenReturn(List.of(account));
         when(users.create("operator", "password-1", operatorRoleId))
                 .thenReturn(account);
-        when(users.update(userId, adminRoleId, true, ""))
+        when(users.update(eq(userId), eq(adminRoleId), eq(true), eq(""), any()))
                 .thenReturn(account);
         var admin = user("admin").roles("ADMIN");
 
@@ -129,7 +129,7 @@ class AdminControllerTest {
                         .with(user("operator").roles("OPERATOR")))
                 .andExpect(status().isForbidden());
         verify(users).create("operator", "password-1", operatorRoleId);
-        verify(users).update(userId, adminRoleId, true, "");
+        verify(users).update(eq(userId), eq(adminRoleId), eq(true), eq(""), any());
     }
 
     @Test
@@ -211,7 +211,12 @@ class AdminControllerTest {
         when(server.getId()).thenReturn(serverId);
         when(server.getName()).thenReturn("Lobby");
         when(server.isEnabled()).thenReturn(true);
+        when(server.state(any())).thenReturn(ServerInstance.State.ONLINE);
+        when(server.getOnlinePlayers()).thenReturn(12);
+        when(server.getMaxPlayers()).thenReturn(100);
         when(server.getCreatedAt()).thenReturn(now);
+        when(server.getLastReportAt()).thenReturn(now);
+        when(server.getLastHeartbeatAt()).thenReturn(now);
         when(servers.list()).thenReturn(List.of(server));
         when(servers.create("Lobby"))
                 .thenReturn(new ServerService.Credentials(serverId, "Lobby", "created-key"));
@@ -239,6 +244,9 @@ class AdminControllerTest {
         mvc.perform(get("/api/admin/servers").with(admin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("Lobby"))
+                .andExpect(jsonPath("$[0].state").value("ONLINE"))
+                .andExpect(jsonPath("$[0].onlinePlayers").value(12))
+                .andExpect(jsonPath("$[0].maxPlayers").value(100))
                 .andExpect(jsonPath("$[0].apiKey").doesNotExist())
                 .andExpect(jsonPath("$[0].apiKeyHash").doesNotExist());
         mvc.perform(post("/api/admin/servers")
@@ -256,6 +264,10 @@ class AdminControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.apiKey").value("rotated-key"));
         mvc.perform(post("/api/admin/servers/{id}/disable", serverId)
+                        .with(admin)
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+        mvc.perform(post("/api/admin/servers/{id}/enable", serverId)
                         .with(admin)
                         .with(csrf()))
                 .andExpect(status().isNoContent());
@@ -279,6 +291,7 @@ class AdminControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(servers).disable(serverId);
+        verify(servers).enable(serverId);
         verify(resourcePacks).activate(serverId, revisionId);
     }
 }

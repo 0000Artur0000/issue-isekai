@@ -10,11 +10,14 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -258,14 +261,11 @@ public class ReportQueueService {
             Priority priority,
             UUID assigneeId,
             UUID duplicateOfId,
-            String actorUsername) {
+            Authentication actor) {
         if (status == null || priority == null) {
             throw new IllegalArgumentException("Status and priority are required");
         }
         NamedParameterJdbcTemplate database = database();
-        if (assigneeId != null && !exists(database, "users", assigneeId, true)) {
-            throw new IllegalArgumentException("Enabled assignee not found");
-        }
         if (status == Status.DUPLICATE) {
             if (duplicateOfId == null) {
                 throw new IllegalArgumentException("Duplicate target is required");
@@ -273,18 +273,22 @@ public class ReportQueueService {
             if (id.equals(duplicateOfId)) {
                 throw new IllegalArgumentException("Report cannot duplicate itself");
             }
-            if (!exists(database, "reports", duplicateOfId, false)) {
-                throw new IllegalArgumentException("Duplicate target not found");
-            }
         } else {
             duplicateOfId = null;
         }
         WorkflowState oldState = state(database, id);
         WorkflowState newState = new WorkflowState(status, priority, assigneeId, duplicateOfId);
+        requireWorkflowPermissions(actor, oldState, newState);
         if (oldState.equals(newState)) {
             return;
         }
-        UUID actorId = actor(database, actorUsername);
+        if (assigneeId != null && !exists(database, "users", assigneeId, true)) {
+            throw new IllegalArgumentException("Enabled assignee not found");
+        }
+        if (duplicateOfId != null && !exists(database, "reports", duplicateOfId, false)) {
+            throw new IllegalArgumentException("Duplicate target not found");
+        }
+        UUID actorId = actor(database, actor.getName());
         OffsetDateTime updatedAt = OffsetDateTime.ofInstant(Instant.now(), ZoneOffset.UTC);
         MapSqlParameterSource parameters = new MapSqlParameterSource()
                 .addValue("id", id)
@@ -326,6 +330,7 @@ public class ReportQueueService {
                         SELECT status, priority, assignee_id, duplicate_of_id
                         FROM reports
                         WHERE id = :id
+                        FOR UPDATE
                         """,
                 new MapSqlParameterSource("id", id),
                 (resultSet, row) -> new WorkflowState(
@@ -337,6 +342,29 @@ public class ReportQueueService {
             throw new ReportNotFoundException();
         }
         return states.getFirst();
+    }
+
+    private static void requireWorkflowPermissions(
+            Authentication actor, WorkflowState oldState, WorkflowState newState) {
+        require(actor, oldState.status() != newState.status(), "reports.status.update");
+        require(actor, oldState.priority() != newState.priority(), "reports.priority.update");
+        require(
+                actor,
+                !Objects.equals(oldState.assigneeId(), newState.assigneeId()),
+                "reports.assignee.update");
+        require(
+                actor,
+                !Objects.equals(oldState.duplicateOfId(), newState.duplicateOfId()),
+                "reports.duplicate.update");
+    }
+
+    private static void require(Authentication actor, boolean changed, String permission) {
+        if (changed
+                && actor.getAuthorities().stream().noneMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN")
+                                || authority.getAuthority().equals(permission))) {
+            throw new AccessDeniedException("Missing permission: " + permission);
+        }
     }
 
     private static UUID actor(NamedParameterJdbcTemplate database, String username) {

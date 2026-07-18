@@ -1,0 +1,26 @@
+dialog:
+  title: "<gold>Report a bug</gold>"
+  body: "Describe what you expected, what happened, and how to reproduce it."
+  category: "Category"
+  description: "Description"
+  submit: "<green>Submit</green>"
+  submit-tooltip: "Queue this bug report"
+  cancel: "<gray>Cancel</gray>"
+  cancel-tooltip: "Close without sending"
+message:
+  usage-console: '<red>Usage: /bug \<online player></red>'
+  usage-player: "<red>Usage: /bug [online player]</red>"
+  no-permission-other: "<red>You cannot open bug reports for other players.</red>"
+  player-offline: "<red>Player <white><player></white> is not online.</red>"
+  cancelled: "<yellow>Bug report cancelled.</yellow>"
+  queued: "<green>Bug report queued.</green>"
+  queue-failed: "<red>Could not queue bug report. Please try again later.</red>"
+validation:
+  unknown-category: "<red>Unknown category.</red>"
+  description-length: "<red>Description must contain between 10 and 1000 characters.</red>"
+  cooldown: "<red>Please wait before submitting again.</red>"
+category:
+  gameplay: "Gameplay"
+  performance: "Performance"
+  exploit: "Exploit"
+  other: "Other"

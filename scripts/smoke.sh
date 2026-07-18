@@ -38,7 +38,7 @@ echo "Smoke: create and assign custom role"
 curl -fsS -b "$cookies" "$panel_url/api/admin/permissions" | grep -q '"reports.view"'
 created_role="$(curl -fsS -b "$cookies" \
   -H "$csrf_header: $csrf" -H 'Content-Type: application/json' \
-  --data "{\"displayName\":\"Smoke role $suffix\",\"description\":\"Smoke\",\"permissions\":[\"reports.view\"]}" \
+  --data "{\"displayName\":\"Smoke role $suffix\",\"description\":\"Smoke\",\"permissions\":[\"reports.view\",\"reports.status.update\"]}" \
   "$panel_url/api/admin/roles")"
 role_id="$(json_value "$created_role" id)"
 test -n "$role_id"
@@ -58,7 +58,11 @@ custom_login_code="$(curl -sS -o /dev/null -w '%{http_code}' \
   --data-urlencode "username=smoke-user-$suffix" \
   --data-urlencode "password=smoke-password-1" "$panel_url/login")"
 test "$custom_login_code" = "204"
-curl -fsS -b "$user_cookies" "$panel_url/api/me" | grep -q '"reports.view"'
+user_identity="$(curl -fsS -b "$user_cookies" -c "$user_cookies" "$panel_url/api/me")"
+user_csrf_header="$(json_value "$user_identity" csrfHeaderName)"
+user_csrf="$(json_value "$user_identity" csrfToken)"
+printf '%s' "$user_identity" | grep -q '"reports.view"'
+printf '%s' "$user_identity" | grep -q '"reports.status.update"'
 test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$user_cookies" \
   "$panel_url/api/reports")" = "200"
 test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$user_cookies" \
@@ -73,6 +77,26 @@ server_id="$(json_value "$created_server" id)"
 api_key="$(json_value "$created_server" apiKey)"
 test -n "$server_id"
 test -n "$api_key"
+
+echo "Smoke: disable and enable server"
+test "$(curl -sS -o /dev/null -w '%{http_code}' -X POST -b "$cookies" \
+  -H "$csrf_header: $csrf" "$panel_url/api/admin/servers/$server_id/disable")" = "204"
+test "$(curl -sS -o /dev/null -w '%{http_code}' \
+  -H 'Content-Type: application/json' -H "X-Server-Key: $api_key" \
+  --data '{"online":true,"onlinePlayers":3,"maxPlayers":20}' \
+  "$panel_url/api/v1/heartbeat")" = "401"
+test "$(curl -sS -o /dev/null -w '%{http_code}' -X POST -b "$cookies" \
+  -H "$csrf_header: $csrf" "$panel_url/api/admin/servers/$server_id/enable")" = "204"
+
+echo "Smoke: heartbeat online"
+test "$(curl -sS -o /dev/null -w '%{http_code}' \
+  -H 'Content-Type: application/json' -H "X-Server-Key: $api_key" \
+  --data '{"online":true,"onlinePlayers":3,"maxPlayers":20}' \
+  "$panel_url/api/v1/heartbeat")" = "204"
+servers_json="$(curl -fsS -b "$cookies" "$panel_url/api/admin/servers")"
+printf '%s' "$servers_json" | grep -q "\"id\":\"$server_id\""
+printf '%s' "$servers_json" | grep -q '"state":"ONLINE"'
+printf '%s' "$servers_json" | grep -q '"onlinePlayers":3,"maxPlayers":20'
 
 printf '%s' 'UEsDBAoAAAgAAFBY71wAAAAAAAAAAAAAAAAJAAQATUVUQS1JTkYv/soAAFBLAwQUAAgICABQWO9cAAAAAAAAAAAAAAAAFAAAAE1FVEEtSU5GL01BTklGRVNULk1G803My0xLLS7RDUstKs7Mz7NSMNQz4OVyLkpNLElN0XWqtFIwAoroGRoqaIQmleaVlGrycvFyAQBQSwcIPR1doTgAAAA3AAAAUEsDBAoAAAgAAExY71wAAAAAAAAAAAAAAAAHAAAAYXNzZXRzL1BLAwQKAAAIAABMWO9cAAAAAAAAAAAAAAAADwAAAGFzc2V0cy9leGFtcGxlL1BLAwQKAAAIAABMWO9cAAAAAAAAAAAAAAAAFQAAAGFzc2V0cy9leGFtcGxlL2l0ZW1zL1BLAwQUAAgICABMWO9cAAAAAAAAAAAAAAAAHgAAAGFzc2V0cy9leGFtcGxlL2l0ZW1zL3J1YnkuanNvbquu5QIAUEsHCAawod0FAAAAAwAAAFBLAwQUAAgICABLWO9cAAAAAAAAAAAAAAAACwAAAHBhY2subWNtZXRhq1YqSEzOVrKqBtPxaflFuYklSlbmpjpKxaUFBflFJakpUNFiJatooLi5aayOUkpqcXJRZkFJZn6ekpWSZ3FxaapncWp2YqZCcW5+dqpSbS0XAFBLBwjCtph+UgAAAFoAAABQSwECCgAKAAAIAABQWO9cAAAAAAAAAAAAAAAACQAEAAAAAAAAAAAAAAAAAAAATUVUQS1JTkYv/soAAFBLAQIUABQACAgIAFBY71w9HV2hOAAAADcAAAAUAAAAAAAAAAAAAAAAACsAAABNRVRBLUlORi9NQU5JRlVTVC5NRlBLAQIKAAoAAAgAAExY71wAAAAAAAAAAAAAAAAHAAAAAAAAAAAAAAAAAKUAAABhc3NldHMvUEsBAgoACgAACAAATFjvXAAAAAAAAAAAAAAAAA8AAAAAAAAAAAAAAAAAygAAAGFzc2V0cy9leGFtcGxlL1BLAQIKAAoAAAgAAExY71wAAAAAAAAAAAAAAAAVAAAAAAAAAAAAAAAAAPcAAABhc3NldHMvZXhhbXBsZS9pdGVtcy9QSwECFAAUAAgICABMWO9cBrCh3QUAAAADAAAAHgAAAAAAAAAAAAAAAAAqAQAAYXNzZXRzL2V4YW1wbGUvaXRlbXMvcnVieS5qc29uUEsBAhQAFAAICAgAS1jvXMK2mH5SAAAAWgAAAAsAAAAAAAAAAAAAAAAAewEAAHBhY2subWNtZXRhUEsFBgAAAAAHAAcAtwEAAAYCAAAAAA==' \
   | base64 -d > "$temporary/pack.zip"
@@ -110,17 +134,43 @@ curl -fsS -b "$cookies" "$panel_url/api/reports?size=1" | grep -q "$first_id"
 curl -fsS -b "$cookies" "$panel_url/api/reports/$first_id" | grep -q '"playerName":"Steve"'
 curl -fsS -b "$cookies" "$panel_url/api/reports/$first_id/inventory" \
   | grep -q '"item_model":"example:ruby_pickaxe"'
+curl -fsS -b "$cookies" "$panel_url/api/admin/servers" | grep -q '"lastReportAt":"'
 echo "Smoke: read resource-pack asset"
 asset="$(curl -fsS -b "$cookies" \
   "$panel_url/api/resource-packs/$revision_id/assets/example/items/ruby.json")"
 test "$asset" = '{}'
+
+echo "Smoke: enforce one permission per changed report field"
+test "$(curl -sS -o /dev/null -w '%{http_code}' -X PUT -b "$user_cookies" \
+  -H "$user_csrf_header: $user_csrf" -H 'Content-Type: application/json' \
+  --data '{"status":"IN_PROGRESS","priority":"NORMAL","assigneeId":null,"duplicateOfId":null}' \
+  "$panel_url/api/reports/$first_id")" = "204"
+denied_body="$temporary/denied.json"
+test "$(curl -sS -o "$denied_body" -w '%{http_code}' -X PUT -b "$user_cookies" \
+  -H "$user_csrf_header: $user_csrf" -H 'Content-Type: application/json' \
+  --data '{"status":"IN_PROGRESS","priority":"HIGH","assigneeId":null,"duplicateOfId":null}' \
+  "$panel_url/api/reports/$first_id")" = "403"
+grep -q '"code":"FORBIDDEN"' "$denied_body"
+grep -q '"args":\[\]' "$denied_body"
+test "$(curl -sS -o /dev/null -w '%{http_code}' -b "$user_cookies" \
+  "$panel_url/api/reports/$first_id/inventory")" = "403"
+
+echo "Smoke: heartbeat offline"
+test "$(curl -sS -o /dev/null -w '%{http_code}' \
+  -H 'Content-Type: application/json' -H "X-Server-Key: $api_key" \
+  --data '{"online":false,"onlinePlayers":0,"maxPlayers":20}' \
+  "$panel_url/api/v1/heartbeat")" = "204"
+curl -fsS -b "$cookies" "$panel_url/api/admin/servers" | grep -q '"state":"OFFLINE"'
 
 echo "Smoke: SPA index"
 curl -fsS "$panel_url/login" | grep -q 'id="root"'
 for route in board timeline "reports/$first_id" users roles servers; do
   curl -fsS -b "$cookies" "$panel_url/$route" | grep -q 'id="root"'
 done
-unknown_api_code="$(curl -sS -o /dev/null -w '%{http_code}' \
+unknown_api_body="$temporary/unknown-api.json"
+unknown_api_code="$(curl -sS -o "$unknown_api_body" -w '%{http_code}' \
   -b "$cookies" "$panel_url/api/unknown")"
 test "$unknown_api_code" = "404"
+grep -q '"code":"API_NOT_FOUND"' "$unknown_api_body"
+grep -q '"args":\[\]' "$unknown_api_body"
 curl -fsS -o /dev/null -D - "$panel_url/board" -b "$cookies" | grep -qi 'content-security-policy'

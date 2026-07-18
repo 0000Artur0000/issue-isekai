@@ -27,11 +27,7 @@ export default function Board() {
   const [columns, setColumns] = useState<Columns | null>(null)
   const [error, setError] = useState<string | null>(null)
   const query = filterQuery(params)
-  const canMove =
-    can(me, 'reports.status.update') &&
-    can(me, 'reports.priority.update') &&
-    can(me, 'reports.assignee.update') &&
-    can(me, 'reports.duplicate.update')
+  const canMove = can(me, 'reports.status.update')
 
   useEffect(() => {
     let cancelled = false
@@ -89,8 +85,16 @@ export default function Board() {
 
     let duplicateOfId: string | null = null
     if (to === 'DUPLICATE') {
+      if (!can(me, 'reports.duplicate.update')) {
+        window.alert('Нет права отмечать заявку дубликатом')
+        return
+      }
       duplicateOfId = window.prompt('UUID оригинальной заявки:')?.trim() || null
       if (!duplicateOfId) return
+    }
+    if (from === 'DUPLICATE' && !can(me, 'reports.duplicate.update')) {
+      window.alert('Нет права снять связь с оригинальной заявкой')
+      return
     }
 
     const previous = columns

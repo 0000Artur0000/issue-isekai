@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import ru.arzer0.issueisekai.panel.user.UserAccount;
+import ru.arzer0.issueisekai.panel.api.ApiErrorResponse;
 import ru.arzer0.issueisekai.panel.user.RoleService;
 import ru.arzer0.issueisekai.panel.user.UserService;
 import ru.arzer0.issueisekai.panel.user.UserService.UserNotFoundException;
@@ -51,9 +52,8 @@ public class UserAdminApiController {
     @PutMapping("/{id}")
     @PreAuthorize(
             "hasRole('ADMIN') or "
-                    + "(hasAuthority('users.state.update') "
-                    + "and hasAuthority('users.password.reset') "
-                    + "and hasAuthority('users.role.assign'))")
+                    + "hasAnyAuthority('users.state.update', 'users.password.reset', "
+                    + "'users.role.assign')")
     public UserResponse update(
             @PathVariable UUID id,
             @RequestBody UpdateUserRequest request,
@@ -61,21 +61,20 @@ public class UserAdminApiController {
         if (request.enabled() == null) {
             throw new IllegalArgumentException("Enabled is required");
         }
-        roles.requireAssignable(actor, request.roleId());
         return UserResponse.from(
-                users.update(id, request.roleId(), request.enabled(), request.password()));
+                users.update(id, request.roleId(), request.enabled(), request.password(), actor));
     }
 
     @ExceptionHandler(UserNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ErrorResponse notFound(UserNotFoundException exception) {
-        return new ErrorResponse(exception.getMessage());
+    public ApiErrorResponse notFound(UserNotFoundException exception) {
+        return ApiErrorResponse.of("USER_NOT_FOUND", exception);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse invalid(IllegalArgumentException exception) {
-        return new ErrorResponse(exception.getMessage());
+    public ApiErrorResponse invalid(IllegalArgumentException exception) {
+        return ApiErrorResponse.of("INVALID_USER", exception);
     }
 
     public record CreateUserRequest(String username, String password, UUID roleId) {}
@@ -107,6 +106,4 @@ public class UserAdminApiController {
                     role.getId(), role.getCode(), role.getDisplayName(), role.isSystem());
         }
     }
-
-    public record ErrorResponse(String message) {}
 }

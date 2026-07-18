@@ -41,6 +41,8 @@ public class ApiSecurityConfiguration {
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/reports")
                         .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/heartbeat")
+                        .permitAll()
                         .requestMatchers("/api/me", "/login")
                         .permitAll()
                         .requestMatchers("/actuator/health/**")
@@ -51,7 +53,8 @@ public class ApiSecurityConfiguration {
                         .authenticated()
                         .anyRequest()
                         .authenticated())
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/v1/reports"))
+                .csrf(csrf -> csrf.ignoringRequestMatchers(
+                        "/api/v1/reports", "/api/v1/heartbeat"))
                 .sessionManagement(session ->
                         session.sessionFixation(fixation -> fixation.changeSessionId()))
                 .exceptionHandling(exceptions -> exceptions

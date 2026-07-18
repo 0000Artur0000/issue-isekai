@@ -62,7 +62,7 @@ public class ReportIngestService {
                 pack.match(),
                 now,
                 now);
-        database.update("UPDATE servers SET last_seen_at = ? WHERE id = ?", now, server.getId());
+        database.update("UPDATE servers SET last_report_at = ? WHERE id = ?", now, server.getId());
         if (inserted.isEmpty()) {
             UUID existing = database.queryForObject(
                     "SELECT id FROM reports WHERE server_id = ? AND submission_id = ?",

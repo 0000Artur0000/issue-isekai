@@ -2,6 +2,8 @@ package ru.arzer0.issueisekai.plugin.http;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetAddress;
@@ -14,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import ru.arzer0.issueisekai.plugin.api.CreateReportRequest;
@@ -75,6 +78,38 @@ class ReportClientTest {
                 Arguments.of(500, ReportClient.Disposition.RETRYABLE, true),
                 Arguments.of(503, ReportClient.Disposition.RETRYABLE, true),
                 Arguments.of(0, ReportClient.Disposition.RETRYABLE, false));
+    }
+
+    @Test
+    void sendsHeartbeatWithoutQueueContract() throws Exception {
+        var receivedKey = new AtomicReference<String>();
+        var receivedBody = new AtomicReference<String>();
+        HttpServer server = HttpServer.create(
+                new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        server.createContext("/api/v1/heartbeat", exchange -> {
+            receivedKey.set(exchange.getRequestHeaders().getFirst("X-Server-Key"));
+            receivedBody.set(new String(
+                    exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+        });
+        server.start();
+        var client = new ReportClient(
+                URI.create("http://127.0.0.1:" + server.getAddress().getPort()),
+                "server-secret",
+                Duration.ofSeconds(2));
+
+        assertTrue(client.sendHeartbeat(true, 12, 100).get(5, TimeUnit.SECONDS));
+        assertEquals("server-secret", receivedKey.get());
+        assertEquals(
+                "{\"online\":true,\"onlinePlayers\":12,\"maxPlayers\":100}",
+                receivedBody.get());
+        assertTrue(client.sendHeartbeat(false, 0, 100).get(5, TimeUnit.SECONDS));
+        assertEquals(
+                "{\"online\":false,\"onlinePlayers\":0,\"maxPlayers\":100}",
+                receivedBody.get());
+        server.stop(0);
+        assertFalse(client.sendHeartbeat(true, 12, 100).get(5, TimeUnit.SECONDS));
     }
 
     private static CreateReportRequest submission() {

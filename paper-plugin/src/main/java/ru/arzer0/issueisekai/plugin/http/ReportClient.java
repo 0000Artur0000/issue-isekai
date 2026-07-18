@@ -14,19 +14,21 @@ import ru.arzer0.issueisekai.plugin.api.ReportJson;
 
 public final class ReportClient {
     private final HttpClient client;
-    private final URI endpoint;
+    private final URI reportsEndpoint;
+    private final URI heartbeatEndpoint;
     private final String apiKey;
     private final Duration timeout;
 
     public ReportClient(URI panelUrl, String apiKey, Duration timeout) {
         client = HttpClient.newBuilder().connectTimeout(timeout).build();
-        endpoint = panelUrl.resolve("/api/v1/reports");
+        reportsEndpoint = panelUrl.resolve("/api/v1/reports");
+        heartbeatEndpoint = panelUrl.resolve("/api/v1/heartbeat");
         this.apiKey = apiKey;
         this.timeout = timeout;
     }
 
     public CompletableFuture<Result> send(CreateReportRequest submission) {
-        HttpRequest request = HttpRequest.newBuilder(endpoint)
+        HttpRequest request = HttpRequest.newBuilder(reportsEndpoint)
                 .timeout(timeout)
                 .header("Content-Type", "application/json")
                 .header("X-Server-Key", apiKey)
@@ -34,6 +36,22 @@ public final class ReportClient {
                 .build();
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
                 .handle((response, error) -> classify(response, error));
+    }
+
+    public CompletableFuture<Boolean> sendHeartbeat(
+            boolean online, int onlinePlayers, int maxPlayers) {
+        String body = "{\"online\":" + online + ",\"onlinePlayers\":" + onlinePlayers
+                + ",\"maxPlayers\":" + maxPlayers + "}";
+        HttpRequest request = HttpRequest.newBuilder(heartbeatEndpoint)
+                .timeout(timeout)
+                .header("Content-Type", "application/json")
+                .header("X-Server-Key", apiKey)
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                .build();
+        return client.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+                .handle((response, error) -> error == null
+                        && response.statusCode() >= 200
+                        && response.statusCode() < 300);
     }
 
     private static Result classify(HttpResponse<String> response, Throwable error) {

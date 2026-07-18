@@ -55,7 +55,8 @@ class ReportIngestServiceTest {
         assertEquals(reportId, first.reportId());
         assertEquals(reportId, duplicate.reportId());
         verify(database, times(1)).update(startsWith("INSERT INTO report_events"), any(Object[].class));
-        verify(database, times(2)).update(startsWith("UPDATE servers"), any(Object[].class));
+        verify(database, times(2))
+                .update(startsWith("UPDATE servers SET last_report_at"), any(Object[].class));
         verify(database, never())
                 .update(startsWith("INSERT INTO report_inventories"), any(Object[].class));
     }

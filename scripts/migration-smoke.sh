@@ -60,6 +60,9 @@ VALUES
     ('00000000-0000-0000-0000-000000000002', 'migration-server-1', decode(repeat('01', 32), 'hex')),
     ('00000000-0000-0000-0000-000000000003', 'migration-server-2', decode(repeat('02', 32), 'hex'));
 
+UPDATE servers SET last_seen_at = CURRENT_TIMESTAMP
+WHERE id = '00000000-0000-0000-0000-000000000002';
+
 INSERT INTO reports (
     id, server_id, submission_id, category, description, player_uuid, player_name,
     world_key, x, y, z, game_mode, reported_at, paper_version
@@ -96,8 +99,8 @@ DECLARE
     user_one UUID := '00000000-0000-0000-0000-000000000001';
     pack_one UUID := '00000000-0000-0000-0000-000000000006';
 BEGIN
-    IF (SELECT count(*) FROM flyway_schema_history WHERE success) <> 6 THEN
-        RAISE EXCEPTION 'expected Flyway versions V1 through V6';
+    IF (SELECT count(*) FROM flyway_schema_history WHERE success) <> 7 THEN
+        RAISE EXCEPTION 'expected Flyway versions V1 through V7';
     END IF;
     IF (SELECT count(*) FROM roles) <> 2 THEN
         RAISE EXCEPTION 'expected ADMIN and OPERATOR roles';
@@ -120,6 +123,19 @@ BEGIN
     IF (SELECT auth_version FROM users WHERE id = user_one) <> 0 THEN
         RAISE EXCEPTION 'existing user auth_version was not initialized';
     END IF;
+    IF (SELECT last_report_at FROM servers WHERE id = server_one) IS NULL THEN
+        RAISE EXCEPTION 'last_seen_at was not migrated to last_report_at';
+    END IF;
+    UPDATE servers
+    SET last_heartbeat_at = CURRENT_TIMESTAMP, heartbeat_online = TRUE,
+        online_players = 3, max_players = 20
+    WHERE id = server_one;
+    BEGIN
+        UPDATE servers SET online_players = 21 WHERE id = server_one;
+        RAISE EXCEPTION 'invalid heartbeat player count was accepted';
+    EXCEPTION WHEN check_violation THEN
+        NULL;
+    END;
     UPDATE users SET password_hash = 'changed-hash' WHERE id = user_one;
     IF (SELECT auth_version FROM users WHERE id = user_one) <> 1 THEN
         RAISE EXCEPTION 'user security change did not increment auth_version';

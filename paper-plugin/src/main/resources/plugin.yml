@@ -16,3 +16,5 @@ permissions:
     default: true
   bugreport.open.others:
     default: op
+  bugreport.cooldown.bypass:
+    default: op

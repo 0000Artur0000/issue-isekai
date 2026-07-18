@@ -24,7 +24,7 @@ public final class BugReportValidator {
         String normalizedCategory = category == null ? "" : category.trim();
         String normalizedDescription = description == null ? "" : description.trim();
         if (!categories.contains(normalizedCategory)) {
-            return new Result(false, normalizedCategory, normalizedDescription, "Unknown category.");
+            return new Result(false, normalizedCategory, normalizedDescription, "validation.unknown-category");
         }
         if (normalizedDescription.length() < MIN_DESCRIPTION_LENGTH
                 || normalizedDescription.length() > MAX_DESCRIPTION_LENGTH) {
@@ -32,20 +32,25 @@ public final class BugReportValidator {
                     false,
                     normalizedCategory,
                     normalizedDescription,
-                    "Description must contain between 10 and 1000 characters.");
+                    "validation.description-length");
         }
         return new Result(true, normalizedCategory, normalizedDescription, null);
     }
 
-    public synchronized Result validate(UUID playerId, String category, String description) {
+    public Result validate(UUID playerId, String category, String description) {
+        return validate(playerId, category, description, false);
+    }
+
+    public synchronized Result validate(
+            UUID playerId, String category, String description, boolean bypassCooldown) {
         Result result = validate(category, description);
-        if (!result.accepted()) {
+        if (!result.accepted() || bypassCooldown) {
             return result;
         }
         Instant now = Instant.now();
         Instant allowedAt = nextSubmission.get(playerId);
         if (allowedAt != null && now.isBefore(allowedAt)) {
-            return new Result(false, result.category(), result.description(), "Please wait before submitting again.");
+            return new Result(false, result.category(), result.description(), "validation.cooldown");
         }
         nextSubmission.put(playerId, now.plus(cooldown));
         return result;

@@ -14,6 +14,9 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @SuppressWarnings("unchecked")
@@ -25,6 +28,7 @@ class UserServiceTest {
         UserRoleRepository roleRepository = mock(UserRoleRepository.class);
         ObjectProvider<UserRoleRepository> roles = mock(ObjectProvider.class);
         PasswordEncoder passwords = mock(PasswordEncoder.class);
+        RoleService roleService = mock(RoleService.class);
         when(repositories.getObject()).thenReturn(repository);
         when(roles.getObject()).thenReturn(roleRepository);
         UserRole admin = role(UserRole.ADMIN);
@@ -39,17 +43,19 @@ class UserServiceTest {
             saved.set(account);
             return account;
         });
-        var service = new UserService(repositories, roles, passwords);
+        var service = new UserService(repositories, roles, passwords, roleService);
+        var adminActor = actor("ROLE_ADMIN");
 
         service.create(" alice ", "password-1", admin.getId());
         UserAccount account = saved.get();
         assertEquals("alice", account.getUsername());
         assertEquals("hash-1", account.getPasswordHash());
 
-        when(repository.findById(account.getId())).thenReturn(Optional.of(account));
+        when(repository.findLockedById(account.getId())).thenReturn(Optional.of(account));
         when(repository.findByRoleCodeAndEnabledTrue(UserRole.ADMIN))
                 .thenReturn(List.of(account, mock(UserAccount.class)));
-        service.update(account.getId(), operator.getId(), false, "password-2");
+        when(roleService.requireAssignable(adminActor, operator.getId())).thenReturn(operator);
+        service.update(account.getId(), operator.getId(), false, "password-2", adminActor);
         assertEquals(UserRole.OPERATOR, account.getRole().getCode());
         assertEquals("hash-2", account.getPasswordHash());
         assertFalse(account.isEnabled());
@@ -62,16 +68,30 @@ class UserServiceTest {
                 true,
                 Instant.now(),
                 Instant.now());
-        when(repository.findById(lastAdmin.getId())).thenReturn(Optional.of(lastAdmin));
+        when(repository.findLockedById(lastAdmin.getId())).thenReturn(Optional.of(lastAdmin));
         when(repository.findByRoleCodeAndEnabledTrue(UserRole.ADMIN))
                 .thenReturn(List.of(lastAdmin));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.update(lastAdmin.getId(), operator.getId(), true, ""));
+                () -> service.update(lastAdmin.getId(), operator.getId(), true, "", adminActor));
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.update(
+                        account.getId(),
+                        operator.getId(),
+                        false,
+                        "password-3",
+                        actor("users.state.update")));
     }
 
     private static UserRole role(String code) {
         Instant now = Instant.now();
         return new UserRole(UUID.randomUUID(), code, code, "", true, now, now);
+    }
+
+    private static UsernamePasswordAuthenticationToken actor(String authority) {
+        return new UsernamePasswordAuthenticationToken(
+                "admin", "", List.of(new SimpleGrantedAuthority(authority)));
     }
 }

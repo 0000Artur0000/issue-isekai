@@ -60,12 +60,36 @@ public class ServerService {
         repository().saveAndFlush(server);
     }
 
+    @Transactional
+    public void enable(UUID serverId) {
+        ServerInstance server = required(serverId);
+        server.enable();
+        repository().saveAndFlush(server);
+    }
+
     @Transactional(readOnly = true)
     public Optional<ServerInstance> findEnabledByApiKey(String apiKey) {
         if (!StringUtils.hasText(apiKey)) {
             return Optional.empty();
         }
         return repository().findByApiKeyHashAndEnabledTrue(hash(apiKey));
+    }
+
+    @Transactional
+    public boolean heartbeat(
+            String apiKey, boolean online, int onlinePlayers, int maxPlayers) {
+        if (!StringUtils.hasText(apiKey)) {
+            return false;
+        }
+        if (onlinePlayers < 0
+                || maxPlayers < 0
+                || onlinePlayers > maxPlayers
+                || (!online && onlinePlayers != 0)) {
+            throw new IllegalArgumentException("Invalid heartbeat player count");
+        }
+        return repository().updateHeartbeat(
+                        hash(apiKey), online, onlinePlayers, maxPlayers, Instant.now())
+                == 1;
     }
 
     private ServerInstance required(UUID serverId) {

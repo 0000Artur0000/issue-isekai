@@ -12,6 +12,7 @@ import org.bukkit.configuration.Configuration;
 public record PluginConfig(
         URI panelUrl,
         String apiKey,
+        String language,
         List<Category> categories,
         Duration requestTimeout,
         Duration retryInterval,
@@ -27,6 +28,7 @@ public record PluginConfig(
     public static PluginConfig load(Configuration config) {
         URI panelUrl = panelUrl(config.getString("panel-url"));
         String apiKey = required(config.getString("api-key"), "api-key");
+        String language = required(config.getString("language", "ru_RU"), "language");
         List<Category> categories = categories(config.getMapList("categories"));
         int requestTimeout = positive(config.getInt("request-timeout-seconds"), "request-timeout-seconds");
         int retryInterval = positive(config.getInt("retry-interval-seconds"), "retry-interval-seconds");
@@ -36,6 +38,7 @@ public record PluginConfig(
         return new PluginConfig(
                 panelUrl,
                 apiKey,
+                language,
                 categories,
                 Duration.ofSeconds(requestTimeout),
                 Duration.ofSeconds(retryInterval),

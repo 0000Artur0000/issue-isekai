@@ -15,31 +15,31 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import net.kyori.adventure.audience.Audience;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickCallback;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 import ru.arzer0.issueisekai.plugin.PluginConfig;
+import ru.arzer0.issueisekai.plugin.PluginMessages;
 
 public final class BugReportDialog {
     private static final String CATEGORY_KEY = "category";
     private static final String DESCRIPTION_KEY = "description";
     private final List<PluginConfig.Category> categories;
+    private final PluginMessages messages;
 
-    public BugReportDialog(List<PluginConfig.Category> categories) {
+    public BugReportDialog(List<PluginConfig.Category> categories, PluginMessages messages) {
         this.categories = List.copyOf(categories);
+        this.messages = messages;
     }
 
     public void open(Player player, BiConsumer<Player, Response> onSubmit) {
         Objects.requireNonNull(player);
         Objects.requireNonNull(onSubmit);
         player.showDialog(Dialog.create(factory -> factory.empty()
-                .base(DialogBase.builder(Component.text("Report a bug"))
+                .base(DialogBase.builder(messages.component("dialog.title"))
                         .canCloseWithEscape(true)
                         .pause(false)
                         .afterAction(DialogBase.DialogAfterAction.CLOSE)
-                        .body(List.of(DialogBody.plainMessage(Component.text(
-                                "Describe what you expected, what happened, and how to reproduce it."),
+                        .body(List.of(DialogBody.plainMessage(messages.component("dialog.body"),
                                 400)))
                         .inputs(List.of(categoryInput(), descriptionInput()))
                         .build())
@@ -51,15 +51,15 @@ public final class BugReportDialog {
         for (int index = 0; index < categories.size(); index++) {
             PluginConfig.Category category = categories.get(index);
             entries.add(SingleOptionDialogInput.OptionEntry.create(
-                    category.id(), Component.text(category.title()), index == 0));
+                    category.id(), messages.category(category), index == 0));
         }
-        return DialogInput.singleOption(CATEGORY_KEY, Component.text("Category"), entries)
+        return DialogInput.singleOption(CATEGORY_KEY, messages.component("dialog.category"), entries)
                 .width(400)
                 .build();
     }
 
     private DialogInput descriptionInput() {
-        return DialogInput.text(DESCRIPTION_KEY, Component.text("Description"))
+        return DialogInput.text(DESCRIPTION_KEY, messages.component("dialog.description"))
                 .width(400)
                 .maxLength(1000)
                 .multiline(TextDialogInput.MultilineOptions.create(10, 150))
@@ -81,16 +81,16 @@ public final class BugReportDialog {
                                 response.getText(DESCRIPTION_KEY)));
             }
         }, options);
-        return ActionButton.builder(Component.text("Submit", NamedTextColor.GREEN))
-                .tooltip(Component.text("Queue this bug report"))
+        return ActionButton.builder(messages.component("dialog.submit"))
+                .tooltip(messages.component("dialog.submit-tooltip"))
                 .width(150)
                 .action(action)
                 .build();
     }
 
-    private static ActionButton cancelButton() {
-        return ActionButton.builder(Component.text("Cancel", NamedTextColor.GRAY))
-                .tooltip(Component.text("Close without sending"))
+    private ActionButton cancelButton() {
+        return ActionButton.builder(messages.component("dialog.cancel"))
+                .tooltip(messages.component("dialog.cancel-tooltip"))
                 .width(150)
                 .build();
     }

@@ -241,6 +241,15 @@ select {
   align-self: center;
 }
 
+.server-online {
+  color: var(--status-RESOLVED);
+}
+
+.server-offline,
+.server-disabled {
+  color: var(--danger);
+}
+
 .badge.priority-LOW { color: var(--priority-LOW); }
 .badge.priority-HIGH { color: var(--priority-HIGH); }
 .badge.priority-CRITICAL { color: var(--priority-CRITICAL); }
