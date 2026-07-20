@@ -204,8 +204,8 @@ BOOTSTRAP_ADMIN_PASSWORD=change-me \
 
 Тег строгого вида `vX.Y.Z`, отправленный владельцем проекта, после успешного build-job автоматически:
 
-- публикует `ghcr.io/0000artur0000/issue-isekai-panel:X.Y.Z` и `latest`;
-- переименовывает оба JAR с версией и создаёт `SHA256SUMS`;
-- создаёт GitHub Release с release notes и этими файлами.
+- собирает JAR с версией из тега и публикует `ghcr.io/0000artur0000/issue-isekai-panel:X.Y.Z`;
+- создаёт `compose.yaml` с image digest, install guide, installer, `.env.example` и `SHA256SUMS`;
+- создаёт provenance attestations для image и файлов, проверяет анонимное чтение image и публикует GitHub Release.
 
-Повторный запуск обновляет файлы уже существующего Release. CI ничего не развёртывает на серверы. Исполнитель не создаёт commit, push или tag: после проверки изменений это делает владелец проекта.
+Существующий Release не перезаписывается. CI ничего не развёртывает на серверы. Исполнитель не создаёт commit, push или tag: после проверки изменений это делает владелец проекта.
