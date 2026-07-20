@@ -10,6 +10,7 @@ import {
 } from 'react-router-dom'
 import { ApiError, can, login, logout } from './api'
 import { useAuth } from './auth'
+import { t } from './i18n'
 import Board from './Board'
 import Report from './Report'
 import Roles from './Roles'
@@ -40,7 +41,7 @@ function Login() {
     } catch (cause) {
       setError(
         cause instanceof ApiError && cause.status === 401
-          ? 'Неверное имя пользователя или пароль'
+          ? t('login.invalid')
           : (cause as Error).message,
       )
     } finally {
@@ -51,10 +52,10 @@ function Login() {
   return (
     <main id="main">
       <form className="login" onSubmit={onSubmit}>
-        <h1>Вход</h1>
-        <label htmlFor="username">Имя пользователя</label>
+        <h1>{t('login.title')}</h1>
+        <label htmlFor="username">{t('login.username')}</label>
         <input id="username" name="username" autoComplete="username" required />
-        <label htmlFor="password">Пароль</label>
+        <label htmlFor="password">{t('login.password')}</label>
         <input
           id="password"
           name="password"
@@ -64,7 +65,7 @@ function Login() {
         />
         {error && <p role="alert">{error}</p>}
         <button type="submit" disabled={pending}>
-          {pending ? 'Вход…' : 'Войти'}
+          {pending ? t('login.pending') : t('login.submit')}
         </button>
       </form>
     </main>
@@ -94,19 +95,19 @@ function Shell() {
   return (
     <>
       <a className="skip-link" href="#main">
-        К содержимому
+        {t('nav.skip')}
       </a>
       <header>
-        <nav aria-label="Основная навигация">
-          {can(me, 'reports.view') && <NavLink to="/board">Доска</NavLink>}
-          {can(me, 'reports.view') && <NavLink to="/timeline">Лента</NavLink>}
-          {can(me, 'users.view') && <NavLink to="/users">Пользователи</NavLink>}
-          {can(me, 'roles.view') && <NavLink to="/roles">Роли</NavLink>}
-          {can(me, 'servers.view') && <NavLink to="/servers">Серверы</NavLink>}
+        <nav aria-label={t('nav.main')}>
+          {can(me, 'reports.view') && <NavLink to="/board">{t('nav.board')}</NavLink>}
+          {can(me, 'reports.view') && <NavLink to="/timeline">{t('nav.timeline')}</NavLink>}
+          {can(me, 'users.view') && <NavLink to="/users">{t('nav.users')}</NavLink>}
+          {can(me, 'roles.view') && <NavLink to="/roles">{t('nav.roles')}</NavLink>}
+          {can(me, 'servers.view') && <NavLink to="/servers">{t('nav.servers')}</NavLink>}
         </nav>
         <span className="whoami">{me.username}</span>
         <button type="button" onClick={onLogout} disabled={pending}>
-          Выйти
+          {t('nav.logout')}
         </button>
       </header>
       <main id="main">
@@ -119,7 +120,7 @@ function Shell() {
 function RequirePermission({ permission }: { permission: string }) {
   const { me } = useAuth()
   if (!can(me, permission)) {
-    return <p role="alert">Недостаточно прав для просмотра страницы.</p>
+    return <p role="alert">{t('auth.denied')}</p>
   }
   return <Outlet />
 }

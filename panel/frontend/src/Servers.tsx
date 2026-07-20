@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api, can } from './api'
 import { useAuth } from './auth'
+import { formatDate, serverStateLabel, t } from './i18n'
 
 type Server = {
   id: string
@@ -27,18 +28,6 @@ type Revision = {
   createdAt: string
 }
 
-const dateFormat = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
-const STATE_LABELS: Record<Server['state'], string> = {
-  DISABLED: 'отключён',
-  NEVER_CONNECTED: 'не подключался',
-  ONLINE: 'онлайн',
-  OFFLINE: 'офлайн',
-}
-
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false)
   return (
@@ -46,7 +35,7 @@ function CopyButton({ value }: { value: string }) {
       type="button"
       onClick={() => navigator.clipboard.writeText(value).then(() => setCopied(true))}
     >
-      {copied ? 'Скопировано' : 'Копировать'}
+      {copied ? t('common.copied') : t('common.copy')}
     </button>
   )
 }
@@ -100,39 +89,39 @@ function Packs({ server }: { server: Server }) {
   }
 
   if (error) return <p role="alert">{error}</p>
-  if (!revisions) return <p role="status">Загрузка ревизий…</p>
+  if (!revisions) return <p role="status">{t('packs.loading')}</p>
 
   return (
-    <section className="packs" aria-label={`Resource packs сервера ${server.name}`}>
-      <h3>Resource packs — {server.name}</h3>
+    <section className="packs" aria-label={t('packs.section', { name: server.name })}>
+      <h3>{t('packs.title', { name: server.name })}</h3>
       {can(me, 'servers.packs.upload') && (
         <form className="filters" onSubmit={upload}>
-          <input name="displayName" aria-label="Название ревизии" placeholder="Название" required />
+          <input name="displayName" aria-label={t('packs.revision-name')} placeholder={t('packs.name-placeholder')} required />
           <input
             name="minecraftVersion"
-            aria-label="Версия Minecraft"
+            aria-label={t('packs.minecraft-version')}
             defaultValue="26.1.2"
             required
           />
-          <input name="file" type="file" accept=".zip" aria-label="ZIP пака" required />
+          <input name="file" type="file" accept=".zip" aria-label={t('packs.file')} required />
           <button type="submit" disabled={pending}>
-            Загрузить
+            {t('common.upload')}
           </button>
           {uploadError && <p role="alert">{uploadError}</p>}
         </form>
       )}
-      {revisions.length === 0 && <p>Ревизий ещё нет.</p>}
+      {revisions.length === 0 && <p>{t('packs.empty')}</p>}
       {revisions.length > 0 && (
         <div className="table-scroll">
           <table>
-            <caption className="visually-hidden">Ревизии resource pack</caption>
+            <caption className="visually-hidden">{t('packs.table')}</caption>
             <thead>
               <tr>
-                <th scope="col">Название</th>
-                <th scope="col">Minecraft / формат</th>
-                <th scope="col">SHA-1 / SHA-256</th>
-                <th scope="col">Загружена</th>
-                <th scope="col">Активна</th>
+                <th scope="col">{t('packs.name')}</th>
+                <th scope="col">{t('packs.format')}</th>
+                <th scope="col">{t('packs.hashes')}</th>
+                <th scope="col">{t('packs.uploaded')}</th>
+                <th scope="col">{t('packs.active')}</th>
               </tr>
             </thead>
             <tbody>
@@ -150,16 +139,16 @@ function Packs({ server }: { server: Server }) {
                     <br />
                     {revision.sha256}
                   </td>
-                  <td>{dateFormat.format(new Date(revision.createdAt))}</td>
+                  <td>{formatDate(revision.createdAt)}</td>
                   <td>
                     {revision.active ? (
-                      'активна'
+                      t('packs.active-value')
                     ) : can(me, 'servers.packs.activate') ? (
                       <button type="button" disabled={pending} onClick={() => activate(revision)}>
-                        Сделать активной
+                        {t('packs.activate')}
                       </button>
                     ) : (
-                      'нет'
+                      t('common.no')
                     )}
                   </td>
                 </tr>
@@ -219,7 +208,7 @@ export default function Servers() {
   }
 
   async function rotate(server: Server) {
-    if (!window.confirm(`Перевыпустить ключ ${server.name}? Старый ключ перестанет работать.`)) {
+    if (!window.confirm(t('servers.rotate-confirm', { name: server.name }))) {
       return
     }
     setPending(true)
@@ -238,7 +227,7 @@ export default function Servers() {
   async function setEnabled(server: Server, enabled: boolean) {
     if (
       server.enabled &&
-      !window.confirm(`Отключить сервер ${server.name}? Ingest перестанет приниматься.`)
+      !window.confirm(t('servers.disable-confirm', { name: server.name }))
     )
       return
     setPending(true)
@@ -255,16 +244,16 @@ export default function Servers() {
   }
 
   if (error) return <p role="alert">{error}</p>
-  if (!servers) return <p role="status">Загрузка…</p>
+  if (!servers) return <p role="status">{t('common.loading')}</p>
 
   return (
     <>
-      <h1>Серверы</h1>
+      <h1>{t('servers.title')}</h1>
       {can(me, 'servers.create') && (
         <form className="filters" onSubmit={create}>
-          <input name="name" aria-label="Имя сервера" placeholder="Имя сервера" required />
+          <input name="name" aria-label={t('servers.server-name')} placeholder={t('servers.server-name')} required />
           <button type="submit" disabled={pending}>
-            Создать
+            {t('common.create')}
           </button>
           {formError && <p role="alert">{formError}</p>}
         </form>
@@ -272,30 +261,29 @@ export default function Servers() {
       {credentials && (
         <div className="api-key" role="alert">
           <p>
-            Ключ сервера <strong>{credentials.name}</strong> — показывается только один раз,
-            сохраните его сейчас:
+            {t('servers.key-once', { name: credentials.name })}
           </p>
           <p className="mono">{credentials.apiKey}</p>
           <CopyButton value={credentials.apiKey} />{' '}
           <button type="button" onClick={() => setCredentials(null)}>
-            Скрыть
+            {t('common.hide')}
           </button>
         </div>
       )}
-      {servers.length === 0 && <p>Серверов нет.</p>}
+      {servers.length === 0 && <p>{t('servers.empty')}</p>}
       {servers.length > 0 && (
         <div className="table-scroll">
           <table>
-            <caption className="visually-hidden">Серверы Minecraft</caption>
+            <caption className="visually-hidden">{t('servers.table')}</caption>
             <thead>
               <tr>
-                <th scope="col">Имя</th>
-                <th scope="col">Статус</th>
-                <th scope="col">Игроки</th>
-                <th scope="col">Создан</th>
-                <th scope="col">Последняя связь</th>
-                <th scope="col">Последний репорт</th>
-                <th scope="col">Действия</th>
+                <th scope="col">{t('common.name')}</th>
+                <th scope="col">{t('common.status')}</th>
+                <th scope="col">{t('servers.players')}</th>
+                <th scope="col">{t('common.created')}</th>
+                <th scope="col">{t('servers.last-heartbeat')}</th>
+                <th scope="col">{t('servers.last-report')}</th>
+                <th scope="col">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -304,27 +292,27 @@ export default function Servers() {
                   <td>{server.name}</td>
                   <td>
                     <span className={`badge server-${server.state.toLowerCase()}`}>
-                      {STATE_LABELS[server.state]}
+                      {serverStateLabel(server.state)}
                     </span>
                   </td>
                   <td>
                     {server.state === 'ONLINE'
                       ? `${server.onlinePlayers ?? 0}/${server.maxPlayers ?? 0}`
-                      : '—'}
+                      : t('common.none')}
                   </td>
-                  <td>{dateFormat.format(new Date(server.createdAt))}</td>
+                  <td>{formatDate(server.createdAt)}</td>
                   <td>
                     {server.lastHeartbeatAt
-                      ? dateFormat.format(new Date(server.lastHeartbeatAt))
-                      : '—'}
+                      ? formatDate(server.lastHeartbeatAt)
+                      : t('common.none')}
                   </td>
                   <td>
-                    {server.lastReportAt ? dateFormat.format(new Date(server.lastReportAt)) : '—'}
+                    {server.lastReportAt ? formatDate(server.lastReportAt) : t('common.none')}
                   </td>
                   <td className="actions">
                     {can(me, 'servers.keys.rotate') && (
                       <button type="button" disabled={pending} onClick={() => rotate(server)}>
-                        Перевыпустить ключ
+                        {t('servers.rotate')}
                       </button>
                     )}
                     {can(me, 'servers.state.update') && (
@@ -333,7 +321,7 @@ export default function Servers() {
                         disabled={pending}
                         onClick={() => setEnabled(server, !server.enabled)}
                       >
-                        {server.enabled ? 'Отключить' : 'Включить'}
+                        {server.enabled ? t('common.disable') : t('common.enable')}
                       </button>
                     )}
                     {can(me, 'servers.packs.view') && (
@@ -341,7 +329,7 @@ export default function Servers() {
                         type="button"
                         onClick={() => setPacksFor(packsFor?.id === server.id ? null : server)}
                       >
-                        {packsFor?.id === server.id ? 'Скрыть паки' : 'Паки'}
+                        {packsFor?.id === server.id ? t('servers.hide-packs') : t('servers.show-packs')}
                       </button>
                     )}
                   </td>

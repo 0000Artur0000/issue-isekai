@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { fetchMe, type Me } from './api'
+import { t } from './i18n'
 
 type Auth = { me: Me; setMe: (me: Me) => void }
 
@@ -21,9 +22,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   if (error) {
     return (
       <main>
-        <p role="alert">Не удалось загрузить сессию: {error}</p>
+        <p role="alert">{t('auth.session-error', { error })}</p>
         <button type="button" onClick={() => window.location.reload()}>
-          Повторить
+          {t('common.retry')}
         </button>
       </main>
     )
@@ -31,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   if (!me) {
     return (
       <main>
-        <p role="status">Загрузка…</p>
+        <p role="status">{t('common.loading')}</p>
       </main>
     )
   }

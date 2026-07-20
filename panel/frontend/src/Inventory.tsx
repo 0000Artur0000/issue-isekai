@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { componentClasses } from './adventure.mjs'
 import { api } from './api'
+import { inventoryCaptureError, inventoryReason, t } from './i18n'
 import {
   EQUIPMENT_SLOTS,
   HOTBAR_SLOTS,
@@ -69,7 +70,7 @@ export function AdventureText({ component, plain }: { component?: unknown; plain
 
 // --- ItemIcon: definition -> model chain -> 2D texture или placeholder с причиной ---
 
-type Icon = { src?: string; reason?: string }
+type Icon = { src?: string; reason?: string; value?: string }
 
 // ponytail: один модульный кэш по (revision, model key, visual components) — плану ровно это и нужно
 const iconCache = new Map<string, Promise<Icon>>()
@@ -91,17 +92,17 @@ async function modelIcon(revision: string, modelKey: string): Promise<Icon> {
   for (let depth = 0; current && depth < 8; depth++) {
     const plain = current.replace(/^minecraft:/, '')
     if (plain === 'builtin/generated') break
-    if (plain.startsWith('builtin/')) return { reason: `клиентская модель ${plain}` }
+    if (plain.startsWith('builtin/')) return { reason: 'client-model', value: plain }
     let model: Model
     const [namespace, path] = split(current)
     try {
       model = await api<Model>(assetUrl(revision, namespace, 'models', `${path}.json`))
     } catch {
-      return { reason: `модель ${current} не найдена в паке` }
+      return { reason: 'model-missing', value: current }
     }
     if (model.elements) {
       // ponytail: mesh proof пройден, WebGL pixel proof ждёт реальный pack (RENDERER_PROOF.md)
-      return { reason: '3D-модель: нужен WebGL proof на реальном pack' }
+      return { reason: 'webgl' }
     }
     textures = { ...model.textures, ...textures }
     current = model.parent
@@ -110,14 +111,14 @@ async function modelIcon(revision: string, modelKey: string): Promise<Icon> {
   for (let depth = 0; ref?.startsWith('#') && depth < 8; depth++) {
     ref = textures[ref.slice(1)]
   }
-  if (!ref || ref.startsWith('#')) return { reason: 'нет плоской текстуры' }
+  if (!ref || ref.startsWith('#')) return { reason: 'no-texture' }
   const [namespace, path] = split(ref)
   return { src: assetUrl(revision, namespace, 'textures', `${path}.png`) }
 }
 
 function loadIcon(revision: string | null, slot: Slot): Promise<Icon> {
   if (!revision) {
-    return Promise.resolve({ reason: 'ревизия пака не привязана к заявке' })
+    return Promise.resolve({ reason: 'no-revision' })
   }
   const key = slot.item_model ?? slot.material
   const cacheKey = `${revision}:${key}:${slot.damage ?? 0}:${JSON.stringify(slot.custom_model_data ?? null)}`
@@ -129,16 +130,16 @@ function loadIcon(revision: string | null, slot: Slot): Promise<Icon> {
       try {
         definition = await api(assetUrl(revision, namespace, 'items', `${path}.json`))
       } catch {
-        return { reason: `нет определения ${key} в паке` }
+        return { reason: 'definition-missing', value: key }
       }
       const resolved = resolveItemDefinition(definition, {
         damage: slot.damage ?? 0,
         maxDamage: slot.max_damage ?? 0,
         amount: slot.amount,
         customModelData: slot.custom_model_data ?? {},
-      }) as { models?: string[]; unsupported?: string }
-      if (resolved.unsupported) return { reason: resolved.unsupported }
-      if (!resolved.models?.length) return { reason: 'пустая модель' }
+      }) as { models?: string[]; unsupported?: string; value?: string }
+      if (resolved.unsupported) return { reason: resolved.unsupported, value: resolved.value }
+      if (!resolved.models?.length) return { reason: 'empty-model' }
       // ponytail: composite рисуем первой моделью, полная стопка — вместе с renderer
       return modelIcon(revision, resolved.models[0])
     })()
@@ -163,7 +164,7 @@ function ItemIcon({ revision, slot }: { revision: string | null; slot: Slot }) {
   }
   const abbreviation = split(slot.material)[1].split('_').slice(0, 2)
   return (
-    <span className="item-fallback" title={icon?.reason}>
+    <span className="item-fallback" title={icon?.reason && inventoryReason(icon.reason, icon.value)}>
       {abbreviation.map((word) => word[0]?.toUpperCase()).join('')}
     </span>
   )
@@ -194,12 +195,13 @@ function Tooltip({ slot }: { slot: Slot }) {
           {levelSuffix(enchantment.level)}
         </p>
       ))}
-      {slot.amount > 1 && <p>Количество: {slot.amount}</p>}
+      {slot.amount > 1 && <p>{t('inventory.amount', { amount: slot.amount })}</p>}
       {maxDamage > 0 && (
-        <p>
-          Прочность: {maxDamage - damage} / {maxDamage} (
-          {Math.round(((maxDamage - damage) / maxDamage) * 100)}%)
-        </p>
+        <p>{t('inventory.durability', {
+          current: maxDamage - damage,
+          max: maxDamage,
+          percent: Math.round(((maxDamage - damage) / maxDamage) * 100),
+        })}</p>
       )}
       <p className="tooltip-model">{slot.item_model ?? slot.material}</p>
     </div>
@@ -229,7 +231,7 @@ function SlotCell({
     <button
       type="button"
       className={`inv-slot filled${selected ? ' selected' : ''}${flip ? ' flip' : ''}`}
-      aria-label={`${slot.name?.plain ?? slot.material}${selected ? ', выбранный слот' : ''}`}
+      aria-label={`${slot.name?.plain ?? slot.material}${selected ? `, ${t('inventory.selected')}` : ''}`}
       onMouseEnter={(event) => show(event.currentTarget)}
       onMouseLeave={() => setOpen(false)}
       onFocus={(event) => show(event.currentTarget)}
@@ -264,28 +266,28 @@ export default function Inventory({ reportId }: { reportId: string }) {
     }
   }, [reportId])
 
-  if (error) return <p role="alert">Инвентарь: {error}</p>
-  if (!snapshot) return <p role="status">Загрузка инвентаря…</p>
-  if (snapshot === 'none') return <p className="meta">Снимок инвентаря не прилагался.</p>
+  if (error) return <p role="alert">{t('inventory.error', { error })}</p>
+  if (!snapshot) return <p role="status">{t('inventory.loading')}</p>
+  if (snapshot === 'none') return <p className="meta">{t('inventory.none')}</p>
 
   const bySlot = new Map(snapshot.slots.map((slot) => [slot.slot, slot]))
   const revision = snapshot.packRevision?.id ?? null
   const extras = snapshot.slots.filter((slot) => !isKnownSlot(slot.slot))
   const packNote = !revision
-    ? 'Активный resource pack не выбран — custom-модели показаны заглушками.'
+    ? t('inventory.no-pack')
     : null
 
   return (
-    <section aria-label="Инвентарь игрока">
-      <h2>Инвентарь</h2>
-      {snapshot.captureError && <p role="alert">Снимок неполный: {snapshot.captureError}</p>}
+    <section aria-label={t('inventory.player')}>
+      <h2>{t('inventory.title')}</h2>
+      {snapshot.captureError && <p role="alert">{t('inventory.incomplete', { error: inventoryCaptureError(snapshot.captureError) })}</p>}
       {packNote && <p className="meta">{packNote}</p>}
-      <div className="inv-grid" aria-label="Основной инвентарь">
+      <div className="inv-grid" aria-label={t('inventory.main')}>
         {STORAGE_SLOTS.map((name) => (
           <SlotCell key={name} revision={revision} slot={bySlot.get(name)} />
         ))}
       </div>
-      <div className="inv-grid inv-hotbar" aria-label="Хотбар">
+      <div className="inv-grid inv-hotbar" aria-label={t('inventory.hotbar')}>
         {HOTBAR_SLOTS.map((name, index) => (
           <SlotCell
             key={name}
@@ -295,13 +297,13 @@ export default function Inventory({ reportId }: { reportId: string }) {
           />
         ))}
       </div>
-      <div className="inv-grid inv-armor" aria-label="Броня и вторая рука">
+      <div className="inv-grid inv-armor" aria-label={t('inventory.equipment')}>
         {EQUIPMENT_SLOTS.map((name) => (
           <SlotCell key={name} revision={revision} slot={bySlot.get(name)} />
         ))}
       </div>
       {extras.length > 0 && (
-        <div className="inv-grid" aria-label="Дополнительные слоты">
+        <div className="inv-grid" aria-label={t('inventory.extra')}>
           {extras.map((slot) => (
             <SlotCell key={slot.slot} revision={revision} slot={slot} />
           ))}

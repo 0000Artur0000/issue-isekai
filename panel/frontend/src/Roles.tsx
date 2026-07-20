@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api, can, type RoleSummary } from './api'
 import { useAuth } from './auth'
+import {
+  permissionGroupLabel,
+  permissionLabel,
+  roleLabel,
+  t,
+} from './i18n'
 
 type Role = RoleSummary & {
   description: string
@@ -31,7 +37,7 @@ function PermissionFields({
   )
   return Object.entries(groups).map(([group, values]) => (
     <fieldset key={group} disabled={disabled}>
-      <legend>{group}</legend>
+      <legend>{permissionGroupLabel(group)}</legend>
       <div className="permission-grid">
         {values.map((permission) => (
           <label key={permission}>
@@ -41,7 +47,7 @@ function PermissionFields({
               value={permission}
               defaultChecked={selected.includes(permission)}
             />{' '}
-            {permission}
+            {permissionLabel(permission)} <span className="meta">{permission}</span>
           </label>
         ))}
       </div>
@@ -80,7 +86,7 @@ function RoleForm({
   return (
     <form className="role-form" onSubmit={submit}>
       <label>
-        Название
+        {t('roles.name')}
         <input
           name="displayName"
           defaultValue={role?.displayName ?? ''}
@@ -91,7 +97,7 @@ function RoleForm({
         />
       </label>
       <label>
-        Описание
+        {t('roles.description')}
         <input
           name="description"
           defaultValue={role?.description ?? ''}
@@ -106,7 +112,7 @@ function RoleForm({
       />
       {editable && !immutable && (
         <button type="submit" disabled={pending}>
-          {role ? 'Сохранить' : 'Создать роль'}
+          {role ? t('common.save') : t('roles.create')}
         </button>
       )}
     </form>
@@ -150,7 +156,7 @@ export default function Roles() {
   }
 
   async function remove(role: Role) {
-    if (!window.confirm(`Удалить роль ${role.displayName}?`)) return
+    if (!window.confirm(t('roles.remove-confirm', { name: roleLabel(role.code, role.displayName) }))) return
     setPending(true)
     try {
       await api(`/api/admin/roles/${role.id}`, { method: 'DELETE' })
@@ -163,14 +169,14 @@ export default function Roles() {
   }
 
   if (error) return <p role="alert">{error}</p>
-  if (!roles) return <p role="status">Загрузка…</p>
+  if (!roles) return <p role="status">{t('common.loading')}</p>
 
   return (
     <>
-      <h1>Роли и права</h1>
+      <h1>{t('roles.title')}</h1>
       {can(me, 'roles.create') && (
         <section className="role-card">
-          <h2>Новая роль</h2>
+          <h2>{t('roles.new')}</h2>
           <RoleForm
             permissions={permissions}
             editable
@@ -181,11 +187,11 @@ export default function Roles() {
           />
         </section>
       )}
-      {roles.length === 0 && <p>Ролей нет.</p>}
+      {roles.length === 0 && <p>{t('roles.empty')}</p>}
       {roles.map((role) => (
         <section className="role-card" key={`${role.id}-${role.updatedAt}`}>
           <h2>
-            {role.displayName} <span className="meta">{role.code}</span>
+            {roleLabel(role.code, role.displayName)} <span className="meta">{role.code}</span>
           </h2>
           <RoleForm
             role={role}
@@ -196,7 +202,7 @@ export default function Roles() {
           />
           {!role.system && can(me, 'roles.delete') && (
             <button type="button" disabled={pending} onClick={() => remove(role)}>
-              Удалить
+              {t('common.delete')}
             </button>
           )}
         </section>

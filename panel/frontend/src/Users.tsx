@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api, can, type RoleSummary } from './api'
 import { useAuth } from './auth'
+import { formatDate, roleLabel, t } from './i18n'
 
 type User = {
   id: string
@@ -10,8 +11,6 @@ type User = {
   createdAt: string
   updatedAt: string
 }
-
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
 
 export default function Users() {
   const { me } = useAuth()
@@ -84,60 +83,60 @@ export default function Users() {
   }
 
   function toggle(user: User) {
-    if (user.enabled && !window.confirm(`Отключить пользователя ${user.username}?`)) return
+    if (user.enabled && !window.confirm(t('users.disable-confirm', { name: user.username }))) return
     update(user, { enabled: !user.enabled })
   }
 
   function resetPassword(user: User) {
-    const password = window.prompt(`Новый пароль для ${user.username}:`)
+    const password = window.prompt(t('users.password-prompt', { name: user.username }))
     if (password) update(user, { password })
   }
 
   if (error) return <p role="alert">{error}</p>
-  if (!users) return <p role="status">Загрузка…</p>
+  if (!users) return <p role="status">{t('common.loading')}</p>
 
   return (
     <>
-      <h1>Пользователи</h1>
+      <h1>{t('users.title')}</h1>
       {can(me, 'users.create') && canAssign && roles.length > 0 && (
         <form className="filters" onSubmit={create}>
-          <input name="username" aria-label="Имя пользователя" placeholder="Имя" required />
+          <input name="username" aria-label={t('users.username')} placeholder={t('users.username-placeholder')} required />
           <input
             name="password"
             type="password"
-            aria-label="Пароль"
-            placeholder="Пароль"
+            aria-label={t('users.password')}
+            placeholder={t('users.password')}
             autoComplete="new-password"
             required
           />
-          <select name="roleId" aria-label="Роль" required defaultValue="">
+          <select name="roleId" aria-label={t('users.role')} required defaultValue="">
             <option value="" disabled>
-              Выберите роль
+              {t('users.choose-role')}
             </option>
             {roles.map((role) => (
               <option key={role.id} value={role.id}>
-                {role.displayName}
+                {roleLabel(role.code, role.displayName)}
               </option>
             ))}
           </select>
           <button type="submit" disabled={pending}>
-            Создать
+            {t('common.create')}
           </button>
           {formError && <p role="alert">{formError}</p>}
         </form>
       )}
-      {users.length === 0 && <p>Пользователей нет.</p>}
+      {users.length === 0 && <p>{t('users.empty')}</p>}
       {users.length > 0 && (
         <div className="table-scroll">
           <table>
-            <caption className="visually-hidden">Пользователи панели</caption>
+            <caption className="visually-hidden">{t('users.table')}</caption>
             <thead>
               <tr>
-                <th scope="col">Имя</th>
-                <th scope="col">Роль</th>
-                <th scope="col">Статус</th>
-                <th scope="col">Создан</th>
-                <th scope="col">Действия</th>
+                <th scope="col">{t('common.name')}</th>
+                <th scope="col">{t('users.role')}</th>
+                <th scope="col">{t('common.status')}</th>
+                <th scope="col">{t('common.created')}</th>
+                <th scope="col">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -147,27 +146,27 @@ export default function Users() {
                   <td>
                     {canAssign ? (
                       <select
-                        aria-label={`Роль ${user.username}`}
+                        aria-label={t('users.role-label', { name: user.username })}
                         value={user.role.id}
                         disabled={pending}
                         onChange={(event) => update(user, { roleId: event.target.value })}
                       >
                         {roles.map((role) => (
                           <option key={role.id} value={role.id}>
-                            {role.displayName}
+                            {roleLabel(role.code, role.displayName)}
                           </option>
                         ))}
                       </select>
                     ) : (
-                      user.role.displayName
+                      roleLabel(user.role.code, user.role.displayName)
                     )}
                   </td>
-                  <td>{user.enabled ? 'активен' : 'отключён'}</td>
-                  <td>{dateFormat.format(new Date(user.createdAt))}</td>
+                  <td>{user.enabled ? t('users.active') : t('users.disabled')}</td>
+                  <td>{formatDate(user.createdAt, 'date')}</td>
                   <td className="actions">
                     {can(me, 'users.state.update') && (
                       <button type="button" disabled={pending} onClick={() => toggle(user)}>
-                        {user.enabled ? 'Отключить' : 'Включить'}
+                        {user.enabled ? t('common.disable') : t('common.enable')}
                       </button>
                     )}
                     {can(me, 'users.password.reset') && (
@@ -176,7 +175,7 @@ export default function Users() {
                         disabled={pending}
                         onClick={() => resetPassword(user)}
                       >
-                        Сбросить пароль
+                        {t('users.reset-password')}
                       </button>
                     )}
                   </td>

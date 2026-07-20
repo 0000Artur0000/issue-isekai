@@ -1,5 +1,6 @@
 package ru.arzer0.issueisekai.panel.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletException;
@@ -18,11 +19,19 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import ru.arzer0.issueisekai.panel.api.PanelLocale;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class IngestBodyLimitFilter extends OncePerRequestFilter {
     static final int MAX_BODY_SIZE = 4 * 1024 * 1024;
+    private final ObjectMapper json;
+    private final PanelLocale locale;
+
+    public IngestBodyLimitFilter(ObjectMapper json, PanelLocale locale) {
+        this.json = json;
+        this.locale = locale;
+    }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -49,13 +58,11 @@ public class IngestBodyLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(new CachedBodyRequest(request, body), response);
     }
 
-    private static void reject(HttpServletResponse response) throws IOException {
+    private void reject(HttpServletResponse response) throws IOException {
         response.setStatus(HttpStatus.PAYLOAD_TOO_LARGE.value());
         response.setContentType("application/json");
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.getWriter()
-                .write("{\"code\":\"PAYLOAD_TOO_LARGE\",\"message\":"
-                        + "\"Payload exceeds 4 MiB\",\"args\":[]}");
+        json.writeValue(response.getWriter(), locale.error("PAYLOAD_TOO_LARGE"));
     }
 
     private static final class CachedBodyRequest extends HttpServletRequestWrapper {

@@ -11,6 +11,12 @@ import ru.arzer0.issueisekai.panel.security.PanelUserDetails;
 
 @RestController
 public class IdentityApiController {
+    private final PanelLocale locale;
+
+    public IdentityApiController(PanelLocale locale) {
+        this.locale = locale;
+    }
+
     @GetMapping("/api/me")
     public IdentityResponse me(Authentication authentication, CsrfToken csrf) {
         boolean authenticated = authentication != null
@@ -31,7 +37,7 @@ public class IdentityApiController {
                 authenticated ? authentication.getName() : null,
                 role,
                 user == null ? Set.of() : user.permissions(),
-                "ru",
+                locale.code(),
                 csrf.getHeaderName(),
                 csrf.getToken());
     }

@@ -1,3 +1,5 @@
+import { errorLabel, setLocale, t } from './i18n'
+
 export type RoleSummary = {
   id: string
   code: string
@@ -45,17 +47,21 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}): Pr
   const response = await fetch(path, { ...init, method, headers, credentials: 'same-origin' })
   if (response.status === 401 && path !== '/login') {
     window.location.assign('/login')
-    throw new ApiError('Требуется вход', 401)
+    throw new ApiError(t('error.UNAUTHORIZED'), 401)
   }
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { message?: string } | null
-    throw new ApiError(body?.message ?? `Ошибка ${response.status}`, response.status)
+    const body = (await response.json().catch(() => null)) as {
+      code?: string
+      message?: string
+    } | null
+    throw new ApiError(errorLabel(body?.code, body?.message ?? '', response.status), response.status)
   }
   return response.status === 204 ? (undefined as T) : (response.json() as Promise<T>)
 }
 
 export async function fetchMe(): Promise<Me> {
   const me = await api<Me>('/api/me')
+  setLocale(me.locale)
   csrf = { header: me.csrfHeaderName, token: me.csrfToken }
   return me
 }

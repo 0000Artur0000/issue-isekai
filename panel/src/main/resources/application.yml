@@ -22,6 +22,9 @@ spring:
         jdbc:
           time_zone: UTC
 
+app:
+  locale: ${APP_LOCALE:ru}
+
 management:
   endpoints:
     web:

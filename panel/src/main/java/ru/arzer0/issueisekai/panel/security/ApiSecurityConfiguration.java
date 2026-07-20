@@ -1,7 +1,9 @@
 package ru.arzer0.issueisekai.panel.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -25,13 +27,17 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import ru.arzer0.issueisekai.panel.user.UserAccountRepository;
 import ru.arzer0.issueisekai.panel.user.UserRole;
 import ru.arzer0.issueisekai.panel.user.UserRoleRepository;
+import ru.arzer0.issueisekai.panel.api.PanelLocale;
 
 @Configuration
 @EnableMethodSecurity
 public class ApiSecurityConfiguration {
     @Bean
     SecurityFilterChain securityFilterChain(
-            HttpSecurity http, ObjectProvider<UserAccountRepository> repositories)
+            HttpSecurity http,
+            ObjectProvider<UserAccountRepository> repositories,
+            ObjectMapper json,
+            PanelLocale locale)
             throws Exception {
         RequestMatcher api = request -> request.getRequestURI()
                 .startsWith(request.getContextPath() + "/api/");
@@ -60,11 +66,19 @@ public class ApiSecurityConfiguration {
                 .exceptionHandling(exceptions -> exceptions
                         .defaultAuthenticationEntryPointFor(
                                 (request, response, exception) ->
-                                        writeApiError(response, HttpStatus.UNAUTHORIZED),
+                                        writeApiError(
+                                                response,
+                                                HttpStatus.UNAUTHORIZED,
+                                                json,
+                                                locale),
                                 api)
                         .defaultAccessDeniedHandlerFor(
                                 (request, response, exception) ->
-                                        writeApiError(response, HttpStatus.FORBIDDEN),
+                                        writeApiError(
+                                                response,
+                                                HttpStatus.FORBIDDEN,
+                                                json,
+                                                locale),
                                 api)
                         .defaultAuthenticationEntryPointFor(
                                 new LoginUrlAuthenticationEntryPoint("/login"),
@@ -132,12 +146,15 @@ public class ApiSecurityConfiguration {
         };
     }
 
-    private static void writeApiError(HttpServletResponse response, HttpStatus status)
+    private static void writeApiError(
+            HttpServletResponse response,
+            HttpStatus status,
+            ObjectMapper json,
+            PanelLocale locale)
             throws IOException {
         response.setStatus(status.value());
         response.setContentType("application/json");
-        response.getWriter()
-                .write("{\"code\":\"" + status.name() + "\",\"message\":\""
-                        + status.getReasonPhrase() + "\",\"args\":[]}");
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        json.writeValue(response.getWriter(), locale.error(status.name()));
     }
 }

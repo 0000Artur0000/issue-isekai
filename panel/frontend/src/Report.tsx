@@ -2,11 +2,11 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { useParams } from 'react-router-dom'
 import { api, can } from './api'
 import { useAuth } from './auth'
+import { eventLabel, formatDate, priorityLabel, statusLabel, t } from './i18n'
 import Inventory from './Inventory'
 import { classifyUrls } from './media.mjs'
 import {
-  PRIORITY_LABELS,
-  STATUS_LABELS,
+  PRIORITIES,
   STATUSES,
   type Choice,
   type Choices,
@@ -50,11 +50,6 @@ type AuditEvent = {
 type Response = { report: Detail; events: AuditEvent[]; participants: Participant[] }
 
 type MediaSegment = { type: string; text?: string; url?: string; embed?: string }
-
-const dateTimeFormat = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
 
 function Media({ text }: { text: string }) {
   const segments = useMemo(() => classifyUrls(text) as MediaSegment[], [text])
@@ -156,7 +151,7 @@ function WorkflowForm({ report, onSaved }: { report: Detail; onSaved: () => void
   return (
     <form className="workflow" onSubmit={submit} key={report.updatedAt}>
       <label>
-        Статус
+        {t('report.form-status')}
         <select
           name="status"
           defaultValue={report.status}
@@ -167,33 +162,33 @@ function WorkflowForm({ report, onSaved }: { report: Detail; onSaved: () => void
         >
           {STATUSES.map((status) => (
             <option key={status} value={status} disabled={status === 'DUPLICATE' && !canDuplicate}>
-              {STATUS_LABELS[status]}
+              {statusLabel(status)}
             </option>
           ))}
         </select>
       </label>
       <label>
-        Приоритет
+        {t('report.form-priority')}
         <select
           name="priority"
           defaultValue={report.priority}
           disabled={!can(me, 'reports.priority.update')}
         >
-          {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+          {PRIORITIES.map((value) => (
             <option key={value} value={value}>
-              {label}
+              {priorityLabel(value)}
             </option>
           ))}
         </select>
       </label>
       <label>
-        Ответственный
+        {t('report.form-assignee')}
         <select
           name="assigneeId"
           defaultValue={report.assigneeId ?? ''}
           disabled={!can(me, 'reports.assignee.update')}
         >
-          <option value="">—</option>
+          <option value="">{t('common.none')}</option>
           {choices?.assignees.map((assignee: Choice) => (
             <option key={assignee.id} value={assignee.id}>
               {assignee.name}
@@ -202,7 +197,7 @@ function WorkflowForm({ report, onSaved }: { report: Detail; onSaved: () => void
         </select>
       </label>
       <label>
-        UUID оригинала (для дубликата)
+        {t('report.form-duplicate')}
         <input
           name="duplicateOfId"
           defaultValue={report.duplicateOfId ?? ''}
@@ -211,7 +206,7 @@ function WorkflowForm({ report, onSaved }: { report: Detail; onSaved: () => void
       </label>
       {error && <p role="alert">{error}</p>}
       <button type="submit" disabled={pending}>
-        Сохранить
+        {t('common.save')}
       </button>
     </form>
   )
@@ -231,7 +226,7 @@ export default function Report() {
   useEffect(load, [load])
 
   if (error) return <p role="alert">{error}</p>
-  if (!data) return <p role="status">Загрузка…</p>
+  if (!data) return <p role="status">{t('common.loading')}</p>
 
   const { report, events, participants } = data
   const joined = participants.some((participant) => participant.name === me.username)
@@ -254,44 +249,44 @@ export default function Report() {
     <article className="report-detail">
       <h1>
         {report.category}{' '}
-        <span className={`badge status-${report.status}`}>{STATUS_LABELS[report.status]}</span>{' '}
+        <span className={`badge status-${report.status}`}>{statusLabel(report.status)}</span>{' '}
         <span className={`badge priority-${report.priority}`}>
-          {PRIORITY_LABELS[report.priority]}
+          {priorityLabel(report.priority)}
         </span>
       </h1>
       <Media text={report.description} />
       <dl className="report-meta">
-        <dt>Игрок</dt>
+        <dt>{t('report.player')}</dt>
         <dd>
           {report.playerName} <span className="meta">{report.playerUuid}</span>
         </dd>
-        <dt>Сервер</dt>
+        <dt>{t('report.server')}</dt>
         <dd>
           {report.serverName} · {report.worldKey} · {report.x} {report.y} {report.z} ·{' '}
           {report.gameMode}
         </dd>
-        <dt>Отправлено</dt>
+        <dt>{t('report.sent')}</dt>
         <dd>
-          {dateTimeFormat.format(new Date(report.reportedAt))} · Paper {report.paperVersion}
+          {formatDate(report.reportedAt)} · Paper {report.paperVersion}
         </dd>
-        <dt>Ответственный</dt>
-        <dd>{report.assigneeName ?? '—'}</dd>
+        <dt>{t('report.assignee')}</dt>
+        <dd>{report.assigneeName ?? t('common.none')}</dd>
         {report.duplicateOfId && (
           <>
-            <dt>Дубликат</dt>
+            <dt>{t('report.duplicate')}</dt>
             <dd>
               <a href={`/reports/${report.duplicateOfId}`}>{report.duplicateOfId}</a>
             </dd>
           </>
         )}
-        <dt>Участники</dt>
+        <dt>{t('report.participants')}</dt>
         <dd>
           {participants.length > 0
             ? participants.map((participant) => participant.name).join(', ')
-            : '—'}{' '}
+            : t('common.none')}{' '}
           {can(me, 'reports.participate') && (
             <button type="button" onClick={toggleParticipation} disabled={pending}>
-              {joined ? 'Покинуть' : 'Присоединиться'}
+              {joined ? t('report.leave') : t('report.join')}
             </button>
           )}
         </dd>
@@ -303,13 +298,13 @@ export default function Report() {
         <WorkflowForm report={report} onSaved={load} />
       )}
       {can(me, 'reports.inventory.view') && <Inventory reportId={report.id} />}
-      <section aria-label="История">
-        <h2>История</h2>
+      <section aria-label={t('report.history')}>
+        <h2>{t('report.history')}</h2>
         <ul className="audit">
           {events.map((event) => (
             <li key={event.id}>
-              <span className="meta">{dateTimeFormat.format(new Date(event.createdAt))}</span>{' '}
-              {event.eventType} — {event.actorName ?? 'система'}
+              <span className="meta">{formatDate(event.createdAt)}</span>{' '}
+              {eventLabel(event.eventType)} — {event.actorName ?? t('report.system')}
               {event.newValue && (
                 <span className="meta">
                   {' '}

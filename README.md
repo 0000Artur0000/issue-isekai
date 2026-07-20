@@ -63,7 +63,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Перед первым запуском замените в `.env` как минимум `POSTGRES_PASSWORD` и `BOOTSTRAP_ADMIN_PASSWORD`. Панель по умолчанию доступна на `http://127.0.0.1:8080`.
+Перед первым запуском замените в `.env` как минимум `POSTGRES_PASSWORD` и `BOOTSTRAP_ADMIN_PASSWORD`. `APP_LOCALE=ru|en` задаёт язык всей панели; неизвестное значение останавливает запуск. Панель по умолчанию доступна на `http://127.0.0.1:8080`.
 
 Первый администратор создаётся только в пустой базе из:
 
@@ -94,6 +94,7 @@ DATABASE_USERNAME=issue_isekai \
 DATABASE_PASSWORD=change-me \
 BOOTSTRAP_ADMIN_USERNAME=admin \
 BOOTSTRAP_ADMIN_PASSWORD=change-me \
+APP_LOCALE=ru \
 java -jar panel/build/libs/panel-0.1.0-SNAPSHOT.jar
 ```
 

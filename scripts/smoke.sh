@@ -4,6 +4,7 @@ set -eu
 panel_url="${PANEL_URL:-http://127.0.0.1:8080}"
 admin_username="${BOOTSTRAP_ADMIN_USERNAME:-admin}"
 admin_password="${BOOTSTRAP_ADMIN_PASSWORD:-change-me-now}"
+app_locale="${APP_LOCALE:-ru}"
 temporary="$(mktemp -d)"
 cookies="$temporary/cookies"
 user_cookies="$temporary/user-cookies"
@@ -15,6 +16,7 @@ json_value() {
 
 echo "Smoke: login"
 identity="$(curl -fsS -c "$cookies" "$panel_url/api/me")"
+printf '%s' "$identity" | grep -q "\"locale\":\"$app_locale\""
 csrf_header="$(json_value "$identity" csrfHeaderName)"
 csrf="$(json_value "$identity" csrfToken)"
 test -n "$csrf_header"

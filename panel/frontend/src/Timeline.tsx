@@ -1,11 +1,10 @@
 import { Fragment, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from './api'
+import { formatDate, t } from './i18n'
 import { FilterBar, filterQuery, ReportCard, type Page, type ReportSummary } from './reports'
 
 const PAGE_SIZE = 20
-const dayFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'long' })
-
 export default function Timeline() {
   const [params] = useSearchParams()
   const [reports, setReports] = useState<ReportSummary[]>([])
@@ -52,13 +51,13 @@ export default function Timeline() {
   let previousDay = ''
   return (
     <>
-      <h1>Лента</h1>
+      <h1>{t('timeline.title')}</h1>
       <FilterBar withStatus />
       {error && <p role="alert">{error}</p>}
-      {!loading && !error && reports.length === 0 && <p>Заявок нет.</p>}
+      {!loading && !error && reports.length === 0 && <p>{t('timeline.empty')}</p>}
       <div className="timeline">
         {reports.map((report) => {
-          const day = dayFormat.format(new Date(report.createdAt))
+          const day = formatDate(report.createdAt, 'long')
           const heading = day !== previousDay ? <h2>{day}</h2> : null
           previousDay = day
           return (
@@ -69,10 +68,10 @@ export default function Timeline() {
           )
         })}
       </div>
-      {loading && <p role="status">Загрузка…</p>}
+      {loading && <p role="status">{t('common.loading')}</p>}
       {!loading && reports.length < total && (
         <button type="button" onClick={() => setPage(page + 1)}>
-          Показать ещё ({total - reports.length})
+          {t('timeline.more', { count: total - reports.length })}
         </button>
       )}
     </>

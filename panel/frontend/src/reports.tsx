@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, can } from './api'
 import { useAuth } from './auth'
+import { formatDate, priorityLabel, statusLabel, t } from './i18n'
 
 export type Status = 'NEW' | 'IN_PROGRESS' | 'RESOLVED' | 'REJECTED' | 'DUPLICATE'
 export type Priority = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'
@@ -27,20 +28,7 @@ export type Choices = { servers: Choice[]; assignees: Choice[] }
 
 export const STATUSES: Status[] = ['NEW', 'IN_PROGRESS', 'RESOLVED', 'REJECTED', 'DUPLICATE']
 
-export const STATUS_LABELS: Record<Status, string> = {
-  NEW: 'Новые',
-  IN_PROGRESS: 'В работе',
-  RESOLVED: 'Решены',
-  REJECTED: 'Отклонены',
-  DUPLICATE: 'Дубликаты',
-}
-
-export const PRIORITY_LABELS: Record<Priority, string> = {
-  LOW: 'Низкий',
-  NORMAL: 'Обычный',
-  HIGH: 'Высокий',
-  CRITICAL: 'Критический',
-}
+export const PRIORITIES: Priority[] = ['LOW', 'NORMAL', 'HIGH', 'CRITICAL']
 
 const FILTER_KEYS = ['search', 'serverId', 'priority', 'assigneeId', 'category', 'status']
 
@@ -52,11 +40,6 @@ export function filterQuery(params: URLSearchParams): string {
   }
   return query.toString()
 }
-
-const dateTimeFormat = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'short',
-  timeStyle: 'short',
-})
 
 export function FilterBar({ withStatus = false }: { withStatus?: boolean }) {
   const [params, setParams] = useSearchParams()
@@ -82,34 +65,34 @@ export function FilterBar({ withStatus = false }: { withStatus?: boolean }) {
     <form className="filters" key={params.toString()} onSubmit={apply}>
       <input
         name="search"
-        aria-label="Поиск"
-        placeholder="Поиск…"
+        aria-label={t('filters.search')}
+        placeholder={t('filters.search-placeholder')}
         defaultValue={params.get('search') ?? ''}
       />
       <input
         name="category"
-        aria-label="Категория"
-        placeholder="Категория"
+        aria-label={t('filters.category')}
+        placeholder={t('filters.category')}
         defaultValue={params.get('category') ?? ''}
       />
-      <select name="serverId" aria-label="Сервер" defaultValue={params.get('serverId') ?? ''}>
-        <option value="">Все серверы</option>
+      <select name="serverId" aria-label={t('filters.server')} defaultValue={params.get('serverId') ?? ''}>
+        <option value="">{t('filters.all-servers')}</option>
         {choices?.servers.map((server) => (
           <option key={server.id} value={server.id}>
             {server.name}
           </option>
         ))}
       </select>
-      <select name="priority" aria-label="Приоритет" defaultValue={params.get('priority') ?? ''}>
-        <option value="">Любой приоритет</option>
-        {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+      <select name="priority" aria-label={t('filters.priority')} defaultValue={params.get('priority') ?? ''}>
+        <option value="">{t('filters.any-priority')}</option>
+        {PRIORITIES.map((value) => (
           <option key={value} value={value}>
-            {label}
+            {priorityLabel(value)}
           </option>
         ))}
       </select>
-      <select name="assigneeId" aria-label="Ответственный" defaultValue={params.get('assigneeId') ?? ''}>
-        <option value="">Любой ответственный</option>
+      <select name="assigneeId" aria-label={t('filters.assignee')} defaultValue={params.get('assigneeId') ?? ''}>
+        <option value="">{t('filters.any-assignee')}</option>
         {choices?.assignees.map((assignee) => (
           <option key={assignee.id} value={assignee.id}>
             {assignee.name}
@@ -117,18 +100,18 @@ export function FilterBar({ withStatus = false }: { withStatus?: boolean }) {
         ))}
       </select>
       {withStatus && (
-        <select name="status" aria-label="Статус" defaultValue={params.get('status') ?? ''}>
-          <option value="">Любой статус</option>
+        <select name="status" aria-label={t('filters.status')} defaultValue={params.get('status') ?? ''}>
+          <option value="">{t('filters.any-status')}</option>
           {STATUSES.map((status) => (
             <option key={status} value={status}>
-              {STATUS_LABELS[status]}
+              {statusLabel(status)}
             </option>
           ))}
         </select>
       )}
-      <button type="submit">Применить</button>
+      <button type="submit">{t('filters.apply')}</button>
       <button type="button" onClick={() => setParams({}, { replace: true })}>
-        Сбросить
+        {t('filters.reset')}
       </button>
     </form>
   )
@@ -169,23 +152,23 @@ export function ReportCard({
       <header>
         <Link to={`/reports/${report.id}`}>{report.category}</Link>
         <span className={`badge priority-${report.priority}`}>
-          {PRIORITY_LABELS[report.priority]}
+          {priorityLabel(report.priority)}
         </span>
       </header>
       <p className="snippet">{report.descriptionSnippet}</p>
       <p className="meta">
         {report.playerName} · {report.serverName} ·{' '}
-        {dateTimeFormat.format(new Date(report.createdAt))}
+        {formatDate(report.createdAt, 'short')}
       </p>
-      {report.assigneeName && <p className="meta">Ответственный: {report.assigneeName}</p>}
+      {report.assigneeName && <p className="meta">{t('report.assignee')}: {report.assigneeName}</p>}
       {report.participants.length > 0 && (
         <p className="meta">
-          Участники: {report.participants.map((participant) => participant.name).join(', ')}
+          {t('report.participants')}: {report.participants.map((participant) => participant.name).join(', ')}
         </p>
       )}
       {can(me, 'reports.participate') && (
         <button type="button" onClick={toggleParticipation} disabled={pending}>
-          {joined ? 'Покинуть' : 'Присоединиться'}
+          {joined ? t('report.leave') : t('report.join')}
         </button>
       )}
     </article>

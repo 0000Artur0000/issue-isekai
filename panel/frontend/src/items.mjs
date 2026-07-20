@@ -5,7 +5,7 @@
 
 export function resolveItemDefinition(definition, context) {
   if (!definition || typeof definition !== 'object' || !definition.model) {
-    return { unsupported: 'нет модели в определении' }
+    return { unsupported: 'no-model' }
   }
   return walk(definition.model, context)
 }
@@ -16,7 +16,7 @@ function walk(node, context) {
     case 'model':
       return typeof node.model === 'string'
         ? { models: [node.model] }
-        : { unsupported: 'нет model key' }
+        : { unsupported: 'no-model-key' }
     case 'composite': {
       const models = []
       for (const child of node.models ?? []) {
@@ -25,12 +25,12 @@ function walk(node, context) {
           models.push(...resolved.models)
         }
       }
-      return models.length > 0 ? { models } : { unsupported: 'composite без поддержанных моделей' }
+      return models.length > 0 ? { models } : { unsupported: 'empty-composite' }
     }
     case 'condition': {
       const value = conditionValue(node, context)
       if (value === null) {
-        return { unsupported: `условие ${node.property}` }
+        return { unsupported: 'condition', value: node.property }
       }
       return walk(value ? node.on_true : node.on_false, context)
     }
@@ -39,7 +39,7 @@ function walk(node, context) {
       if (value === null) {
         return node.fallback
           ? walk(node.fallback, context)
-          : { unsupported: `селектор ${node.property}` }
+          : { unsupported: 'selector', value: node.property }
       }
       for (const entry of node.cases ?? []) {
         const when = Array.isArray(entry.when) ? entry.when : [entry.when]
@@ -49,12 +49,12 @@ function walk(node, context) {
       }
       return node.fallback
         ? walk(node.fallback, context)
-        : { unsupported: `нет case для ${value}` }
+        : { unsupported: 'no-case', value }
     }
     case 'range_dispatch': {
       const value = rangeValue(node, context)
       if (value === null) {
-        return { unsupported: `диапазон ${node.property}` }
+        return { unsupported: 'range', value: node.property }
       }
       const scaled = value * (node.scale ?? 1)
       let chosen = null
@@ -68,14 +68,14 @@ function walk(node, context) {
       }
       return node.fallback
         ? walk(node.fallback, context)
-        : { unsupported: 'нет entry под значение' }
+        : { unsupported: 'no-entry' }
     }
     case 'empty':
       return { models: [] }
     case 'special':
-      return { unsupported: 'special-модель (клиентский рендер)' }
+      return { unsupported: 'special' }
     default:
-      return { unsupported: `тип ${node?.type ?? 'неизвестен'}` }
+      return { unsupported: 'type', value: node?.type ?? 'unknown' }
   }
 }
 

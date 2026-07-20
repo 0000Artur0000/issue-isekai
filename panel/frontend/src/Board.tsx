@@ -3,11 +3,11 @@ import { useSearchParams } from 'react-router-dom'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import { api, can } from './api'
 import { useAuth } from './auth'
+import { statusLabel, t } from './i18n'
 import {
   FilterBar,
   filterQuery,
   ReportCard,
-  STATUS_LABELS,
   STATUSES,
   type Page,
   type Priority,
@@ -86,14 +86,14 @@ export default function Board() {
     let duplicateOfId: string | null = null
     if (to === 'DUPLICATE') {
       if (!can(me, 'reports.duplicate.update')) {
-        window.alert('Нет права отмечать заявку дубликатом')
+        window.alert(t('board.duplicate-denied'))
         return
       }
-      duplicateOfId = window.prompt('UUID оригинальной заявки:')?.trim() || null
+      duplicateOfId = window.prompt(t('board.duplicate-prompt'))?.trim() || null
       if (!duplicateOfId) return
     }
     if (from === 'DUPLICATE' && !can(me, 'reports.duplicate.update')) {
-      window.alert('Нет права снять связь с оригинальной заявкой')
+      window.alert(t('board.duplicate-remove-denied'))
       return
     }
 
@@ -129,10 +129,10 @@ export default function Board() {
 
   return (
     <>
-      <h1>Доска</h1>
+      <h1>{t('board.title')}</h1>
       <FilterBar />
       {error && <p role="alert">{error}</p>}
-      {!columns && !error && <p role="status">Загрузка…</p>}
+      {!columns && !error && <p role="status">{t('common.loading')}</p>}
       {columns && (
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="board">
@@ -142,10 +142,10 @@ export default function Board() {
                 <section
                   key={status}
                   className={`column status-${status}`}
-                  aria-label={STATUS_LABELS[status]}
+                  aria-label={statusLabel(status)}
                 >
                   <h2>
-                    {STATUS_LABELS[status]} <span className="meta">{column.total}</span>
+                    {statusLabel(status)} <span className="meta">{column.total}</span>
                   </h2>
                   <Droppable droppableId={status}>
                     {(provided) => (
@@ -170,7 +170,7 @@ export default function Board() {
                         ))}
                         {provided.placeholder}
                         {column.total > column.reports.length && (
-                          <p className="meta">+{column.total - column.reports.length} ещё</p>
+                          <p className="meta">{t('board.more', { count: column.total - column.reports.length })}</p>
                         )}
                       </div>
                     )}

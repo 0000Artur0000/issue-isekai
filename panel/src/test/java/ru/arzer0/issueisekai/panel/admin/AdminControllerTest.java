@@ -123,7 +123,7 @@ class AdminControllerTest {
                                 {"roleId": "%s"}
                                 """.formatted(adminRoleId)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Enabled is required"));
+                .andExpect(jsonPath("$.message").value("Некорректные данные пользователя"));
 
         mvc.perform(get("/api/admin/users")
                         .with(user("operator").roles("OPERATOR")))

@@ -87,7 +87,8 @@ class SecurityConfigurationTest {
                 .andExpect(redirectedUrl("http://localhost/login"));
         mvc.perform(get("/api/reports"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+                .andExpect(jsonPath("$.message").value("Требуется вход"));
         mvc.perform(get("/users").with(user("operator").roles("OPERATOR")))
                 .andExpect(status().isOk());
         mvc.perform(get("/api/admin/users").with(user("operator").roles("OPERATOR")))
@@ -103,6 +104,7 @@ class SecurityConfigurationTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.message").value("Некорректный запрос"))
                 .andExpect(jsonPath("$.args").isArray());
         ServerInstance server = mock(ServerInstance.class);
         UUID reportId = UUID.randomUUID();
@@ -162,7 +164,7 @@ class SecurityConfigurationTest {
                 .andExpect(status().isPayloadTooLarge())
                 .andExpect(jsonPath("$.code").value("PAYLOAD_TOO_LARGE"))
                 .andExpect(jsonPath("$.args").isArray())
-                .andExpect(jsonPath("$.message").value("Payload exceeds 4 MiB"));
+                .andExpect(jsonPath("$.message").value("Размер запроса превышает 4 МиБ"));
         mvc.perform(get("/api/me"))
                 .andExpect(header().string(
                         "Content-Security-Policy", containsString("object-src 'none'")));

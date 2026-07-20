@@ -163,7 +163,7 @@ class ReportApiControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("REPORT_NOT_FOUND"))
                 .andExpect(jsonPath("$.args").isArray())
-                .andExpect(jsonPath("$.message").value("Report not found"));
+                .andExpect(jsonPath("$.message").value("Баг-репорт не найден"));
     }
 
     @Test
