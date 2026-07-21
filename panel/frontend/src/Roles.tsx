@@ -36,18 +36,20 @@ function PermissionFields({
     [permissions],
   )
   return Object.entries(groups).map(([group, values]) => (
-    <fieldset key={group} disabled={disabled}>
+    <fieldset key={group} className="perm-group" disabled={disabled}>
       <legend>{permissionGroupLabel(group)}</legend>
       <div className="permission-grid">
         {values.map((permission) => (
-          <label key={permission}>
+          <label key={permission} className="perm-check">
             <input
               type="checkbox"
               name="permissions"
               value={permission}
               defaultChecked={selected.includes(permission)}
-            />{' '}
-            {permissionLabel(permission)} <span className="meta">{permission}</span>
+            />
+            <span>
+              {permissionLabel(permission)} <span className="perm-code">{permission}</span>
+            </span>
           </label>
         ))}
       </div>
@@ -89,6 +91,7 @@ function RoleForm({
         {t('roles.name')}
         <input
           name="displayName"
+          className="mc-input"
           defaultValue={role?.displayName ?? ''}
           disabled={!editable || immutable}
           readOnly={role?.code === 'OPERATOR'}
@@ -100,6 +103,7 @@ function RoleForm({
         {t('roles.description')}
         <input
           name="description"
+          className="mc-input"
           defaultValue={role?.description ?? ''}
           disabled={!editable || immutable}
           maxLength={500}
@@ -111,9 +115,11 @@ function RoleForm({
         disabled={!editable || immutable}
       />
       {editable && !immutable && (
-        <button type="submit" disabled={pending}>
-          {role ? t('common.save') : t('roles.create')}
-        </button>
+        <div>
+          <button type="submit" className="mc-btn mc-btn--gold" disabled={pending}>
+            {role ? t('common.save') : t('roles.create')}
+          </button>
+        </div>
       )}
     </form>
   )
@@ -168,14 +174,23 @@ export default function Roles() {
     }
   }
 
-  if (error) return <p role="alert">{error}</p>
-  if (!roles) return <p role="status">{t('common.loading')}</p>
+  if (error)
+    return (
+      <div className="state-error mc-panel" role="alert">
+        <img src="/assets/mc/item/barrier.png" alt="" />
+        {error}
+      </div>
+    )
+  if (!roles) return <p role="status" className="state-loading">{t('common.loading')}</p>
 
   return (
     <>
-      <h1>{t('roles.title')}</h1>
+      <div className="page-head">
+        <img src="/assets/mc/item/armor_stand.png" alt="" />
+        <h1>{t('roles.title')}</h1>
+      </div>
       {can(me, 'roles.create') && (
-        <section className="role-card">
+        <section className="role-card mc-panel">
           <h2>{t('roles.new')}</h2>
           <RoleForm
             permissions={permissions}
@@ -187,12 +202,24 @@ export default function Roles() {
           />
         </section>
       )}
-      {roles.length === 0 && <p>{t('roles.empty')}</p>}
+      {roles.length === 0 && (
+        <div className="state-empty mc-panel">
+          <img src="/assets/mc/big/armor_stand.png" alt="" />
+          {t('roles.empty')}
+        </div>
+      )}
       {roles.map((role) => (
-        <section className="role-card" key={`${role.id}-${role.updatedAt}`}>
-          <h2>
-            {roleLabel(role.code, role.displayName)} <span className="meta">{role.code}</span>
-          </h2>
+        <section className={`role-card mc-panel${role.code === 'ADMIN' ? ' mc-panel--gold' : ''}`} key={`${role.id}-${role.updatedAt}`}>
+          <div className="role-head">
+            {role.code === 'ADMIN' && (
+              <img className="role-seal" src="/assets/mc/item/nether_star.png" alt="" />
+            )}
+            {role.system && role.code !== 'ADMIN' && (
+              <img className="role-seal" src="/assets/mc/big/command_block_front.png" alt="" />
+            )}
+            <h2>{roleLabel(role.code, role.displayName)}</h2>
+            <span className="role-code">{role.code}</span>
+          </div>
           <RoleForm
             role={role}
             permissions={permissions}
@@ -201,7 +228,7 @@ export default function Roles() {
             onSubmit={(input) => save(`/api/admin/roles/${role.id}`, 'PUT', input)}
           />
           {!role.system && can(me, 'roles.delete') && (
-            <button type="button" disabled={pending} onClick={() => remove(role)}>
+            <button type="button" className="mc-btn mc-btn--danger mc-btn--sm" disabled={pending} onClick={() => remove(role)}>
               {t('common.delete')}
             </button>
           )}

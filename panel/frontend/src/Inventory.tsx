@@ -180,7 +180,7 @@ function Tooltip({ slot }: { slot: Slot }) {
   const damage = slot.damage ?? 0
   const maxDamage = slot.max_damage ?? 0
   return (
-    <div role="tooltip" className="item-tooltip">
+    <div role="tooltip" className="item-tooltip mc-tooltip">
       <p className="tooltip-name">
         <AdventureText component={slot.name?.component} plain={slot.name?.plain ?? slot.material} />
       </p>
@@ -212,25 +212,31 @@ function SlotCell({
   slot,
   revision,
   selected = false,
+  ghost,
 }: {
   slot?: Slot
   revision: string | null
   selected?: boolean
+  ghost?: string
 }) {
   const [open, setOpen] = useState(false)
   const [flip, setFlip] = useState(false)
   if (!slot) {
-    return <span className={`inv-slot${selected ? ' selected' : ''}`} aria-hidden="true" />
+    return (
+      <span className={`mc-slot inv-slot${selected ? ' selected' : ''}`} aria-hidden="true">
+        {ghost && <img className="slot-ghost" src={`/assets/mc/slot-icons/${ghost}.png`} alt="" />}
+      </span>
+    )
   }
   function show(target: HTMLElement) {
     // ponytail: держим tooltip во viewport одним flip у правого края
-    setFlip(target.getBoundingClientRect().left > window.innerWidth - 280)
+    setFlip(target.getBoundingClientRect().left > window.innerWidth - 300)
     setOpen(true)
   }
   return (
     <button
       type="button"
-      className={`inv-slot filled${selected ? ' selected' : ''}${flip ? ' flip' : ''}`}
+      className={`mc-slot inv-slot filled${selected ? ' selected' : ''}${flip ? ' flip' : ''}`}
       aria-label={`${slot.name?.plain ?? slot.material}${selected ? `, ${t('inventory.selected')}` : ''}`}
       onMouseEnter={(event) => show(event.currentTarget)}
       onMouseLeave={() => setOpen(false)}
@@ -245,6 +251,14 @@ function SlotCell({
       {open && <Tooltip slot={slot} />}
     </button>
   )
+}
+
+const EQUIPMENT_GHOSTS: Record<string, string> = {
+  helmet: 'helmet',
+  chestplate: 'chestplate',
+  leggings: 'leggings',
+  boots: 'boots',
+  offhand: 'shield',
 }
 
 export default function Inventory({ reportId }: { reportId: string }) {
@@ -278,29 +292,41 @@ export default function Inventory({ reportId }: { reportId: string }) {
     : null
 
   return (
-    <section aria-label={t('inventory.player')}>
-      <h2>{t('inventory.title')}</h2>
+    <section className="report-section mc-panel" aria-label={t('inventory.player')}>
+      <h2>
+        <img className="mc-ico" src="/assets/mc/item/bundle.png" alt="" />
+        {t('inventory.title')}
+      </h2>
       {snapshot.captureError && <p role="alert">{t('inventory.incomplete', { error: inventoryCaptureError(snapshot.captureError) })}</p>}
       {packNote && <p className="meta">{packNote}</p>}
-      <div className="inv-grid" aria-label={t('inventory.main')}>
-        {STORAGE_SLOTS.map((name) => (
-          <SlotCell key={name} revision={revision} slot={bySlot.get(name)} />
-        ))}
-      </div>
-      <div className="inv-grid inv-hotbar" aria-label={t('inventory.hotbar')}>
-        {HOTBAR_SLOTS.map((name, index) => (
-          <SlotCell
-            key={name}
-            revision={revision}
-            slot={bySlot.get(name)}
-            selected={index === snapshot.selectedHotbarSlot}
-          />
-        ))}
-      </div>
-      <div className="inv-grid inv-armor" aria-label={t('inventory.equipment')}>
-        {EQUIPMENT_SLOTS.map((name) => (
-          <SlotCell key={name} revision={revision} slot={bySlot.get(name)} />
-        ))}
+      <div className="inv-shell">
+        <div className="inv-armor-col" aria-label={t('inventory.equipment')}>
+          {EQUIPMENT_SLOTS.map((name) => (
+            <SlotCell
+              key={name}
+              revision={revision}
+              slot={bySlot.get(name)}
+              ghost={EQUIPMENT_GHOSTS[name]}
+            />
+          ))}
+        </div>
+        <div className="inv-main">
+          <div className="inv-grid" aria-label={t('inventory.main')}>
+            {STORAGE_SLOTS.map((name) => (
+              <SlotCell key={name} revision={revision} slot={bySlot.get(name)} />
+            ))}
+          </div>
+          <div className="inv-grid inv-hotbar" aria-label={t('inventory.hotbar')}>
+            {HOTBAR_SLOTS.map((name, index) => (
+              <SlotCell
+                key={name}
+                revision={revision}
+                slot={bySlot.get(name)}
+                selected={index === snapshot.selectedHotbarSlot}
+              />
+            ))}
+          </div>
+        </div>
       </div>
       {extras.length > 0 && (
         <div className="inv-grid" aria-label={t('inventory.extra')}>

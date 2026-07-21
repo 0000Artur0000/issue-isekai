@@ -92,24 +92,34 @@ export default function Users() {
     if (password) update(user, { password })
   }
 
-  if (error) return <p role="alert">{error}</p>
-  if (!users) return <p role="status">{t('common.loading')}</p>
+  if (error)
+    return (
+      <div className="state-error mc-panel" role="alert">
+        <img src="/assets/mc/item/barrier.png" alt="" />
+        {error}
+      </div>
+    )
+  if (!users) return <p role="status" className="state-loading">{t('common.loading')}</p>
 
   return (
     <>
-      <h1>{t('users.title')}</h1>
+      <div className="page-head">
+        <img src="/assets/mc/item/name_tag.png" alt="" />
+        <h1>{t('users.title')}</h1>
+      </div>
       {can(me, 'users.create') && canAssign && roles.length > 0 && (
-        <form className="filters" onSubmit={create}>
-          <input name="username" aria-label={t('users.username')} placeholder={t('users.username-placeholder')} required />
+        <form className="create-bar" onSubmit={create}>
+          <input name="username" className="mc-input" aria-label={t('users.username')} placeholder={t('users.username-placeholder')} required />
           <input
             name="password"
             type="password"
+            className="mc-input"
             aria-label={t('users.password')}
             placeholder={t('users.password')}
             autoComplete="new-password"
             required
           />
-          <select name="roleId" aria-label={t('users.role')} required defaultValue="">
+          <select name="roleId" className="mc-input" aria-label={t('users.role')} required defaultValue="">
             <option value="" disabled>
               {t('users.choose-role')}
             </option>
@@ -119,13 +129,18 @@ export default function Users() {
               </option>
             ))}
           </select>
-          <button type="submit" disabled={pending}>
+          <button type="submit" className="mc-btn mc-btn--emerald mc-btn--sm" disabled={pending}>
             {t('common.create')}
           </button>
           {formError && <p role="alert">{formError}</p>}
         </form>
       )}
-      {users.length === 0 && <p>{t('users.empty')}</p>}
+      {users.length === 0 && (
+        <div className="state-empty mc-panel">
+          <img src="/assets/mc/big/name_tag.png" alt="" />
+          {t('users.empty')}
+        </div>
+      )}
       {users.length > 0 && (
         <div className="table-scroll">
           <table>
@@ -142,10 +157,19 @@ export default function Users() {
             <tbody>
               {users.map((user) => (
                 <tr key={user.id}>
-                  <td>{user.username}</td>
+                  <td>
+                    <span className="user-cell">
+                      <img
+                        src={`/assets/mc/${user.role.code === 'ADMIN' ? 'item/nether_star' : 'item/name_tag'}.png`}
+                        alt=""
+                      />
+                      {user.username}
+                    </span>
+                  </td>
                   <td>
                     {canAssign ? (
                       <select
+                        className="mc-input"
                         aria-label={t('users.role-label', { name: user.username })}
                         value={user.role.id}
                         disabled={pending}
@@ -161,17 +185,27 @@ export default function Users() {
                       roleLabel(user.role.code, user.role.displayName)
                     )}
                   </td>
-                  <td>{user.enabled ? t('users.active') : t('users.disabled')}</td>
+                  <td>
+                    <span className={`mc-chip ${user.enabled ? 'status-RESOLVED' : 'status-REJECTED'}`}>
+                      {user.enabled ? t('users.active') : t('users.disabled')}
+                    </span>
+                  </td>
                   <td>{formatDate(user.createdAt, 'date')}</td>
                   <td className="actions">
                     {can(me, 'users.state.update') && (
-                      <button type="button" disabled={pending} onClick={() => toggle(user)}>
+                      <button
+                        type="button"
+                        className={`mc-btn mc-btn--sm ${user.enabled ? 'mc-btn--danger' : 'mc-btn--emerald'}`}
+                        disabled={pending}
+                        onClick={() => toggle(user)}
+                      >
                         {user.enabled ? t('common.disable') : t('common.enable')}
                       </button>
                     )}
                     {can(me, 'users.password.reset') && (
                       <button
                         type="button"
+                        className="mc-btn mc-btn--gold mc-btn--sm"
                         disabled={pending}
                         onClick={() => resetPassword(user)}
                       >

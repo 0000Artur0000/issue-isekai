@@ -18,6 +18,19 @@ import Servers from './Servers'
 import Timeline from './Timeline'
 import Users from './Users'
 
+const MC = '/assets/mc'
+
+function Particles() {
+  const kinds = ['portal', 'glint', 'hit']
+  return (
+    <div className="fx-field" aria-hidden="true">
+      {Array.from({ length: 12 }, (_, index) => (
+        <span key={index} className={`fx-p fx-p--${kinds[index % 3]} n${index + 1}`} />
+      ))}
+    </div>
+  )
+}
+
 function Login() {
   const { me, setMe } = useAuth()
   const navigate = useNavigate()
@@ -50,27 +63,46 @@ function Login() {
   }
 
   return (
-    <main id="main">
-      <form className="login" onSubmit={onSubmit}>
-        <h1>{t('login.title')}</h1>
-        <label htmlFor="username">{t('login.username')}</label>
-        <input id="username" name="username" autoComplete="username" required />
-        <label htmlFor="password">{t('login.password')}</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-        />
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={pending}>
-          {pending ? t('login.pending') : t('login.submit')}
-        </button>
-      </form>
+    <main id="main" className="login-wrap">
+      <Particles />
+      <div className="login-card mc-frame--amethyst mc-frame">
+        <div className="login-logo">
+          <img src={`${MC}/big/nether_star.png`} alt="" />
+          <h1>
+            Issue<b>Isekai</b>
+          </h1>
+        </div>
+        <p className="login-sub">{t('login.title')}</p>
+        <form className="login" onSubmit={onSubmit}>
+          <label htmlFor="username">{t('login.username')}</label>
+          <input id="username" name="username" className="mc-input" autoComplete="username" required />
+          <label htmlFor="password">{t('login.password')}</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            className="mc-input"
+            autoComplete="current-password"
+            required
+          />
+          {error && <p role="alert">{error}</p>}
+          <button type="submit" className="mc-btn mc-btn--emerald" disabled={pending}>
+            {pending ? t('login.pending') : t('login.submit')}
+          </button>
+        </form>
+        <p className="login-foot">Minecraft fan project · not affiliated with Mojang</p>
+      </div>
     </main>
   )
 }
+
+const NAV_ITEMS = [
+  { to: '/board', permission: 'reports.view', label: 'nav.board', icon: 'item/writable_book.png' },
+  { to: '/timeline', permission: 'reports.view', label: 'nav.timeline', icon: 'item/clock_00.png' },
+  { to: '/users', permission: 'users.view', label: 'nav.users', icon: 'item/name_tag.png' },
+  { to: '/roles', permission: 'roles.view', label: 'nav.roles', icon: 'item/armor_stand.png' },
+  { to: '/servers', permission: 'servers.view', label: 'nav.servers', icon: 'block/beacon.png' },
+] as const
 
 function Shell() {
   const { me, setMe } = useAuth()
@@ -97,16 +129,26 @@ function Shell() {
       <a className="skip-link" href="#main">
         {t('nav.skip')}
       </a>
-      <header>
-        <nav aria-label={t('nav.main')}>
-          {can(me, 'reports.view') && <NavLink to="/board">{t('nav.board')}</NavLink>}
-          {can(me, 'reports.view') && <NavLink to="/timeline">{t('nav.timeline')}</NavLink>}
-          {can(me, 'users.view') && <NavLink to="/users">{t('nav.users')}</NavLink>}
-          {can(me, 'roles.view') && <NavLink to="/roles">{t('nav.roles')}</NavLink>}
-          {can(me, 'servers.view') && <NavLink to="/servers">{t('nav.servers')}</NavLink>}
+      <header className="app-header">
+        <NavLink to="/board" className="brand">
+          <img src={`${MC}/item/amethyst_shard.png`} alt="" />
+          <span>
+            Issue<b>Isekai</b>
+          </span>
+        </NavLink>
+        <nav className="app-nav" aria-label={t('nav.main')}>
+          {NAV_ITEMS.filter((item) => can(me, item.permission)).map((item) => (
+            <NavLink key={item.to} to={item.to}>
+              <img className="mc-ico" src={`${MC}/${item.icon}`} alt="" />
+              <span className="nav-label">{t(item.label)}</span>
+            </NavLink>
+          ))}
         </nav>
-        <span className="whoami">{me.username}</span>
-        <button type="button" onClick={onLogout} disabled={pending}>
+        <span className="header-user">
+          <img className="mc-ico" src={`${MC}/item/name_tag.png`} alt="" />
+          <span className="whoami">{me.username}</span>
+        </span>
+        <button type="button" className="mc-btn mc-btn--danger mc-btn--sm" onClick={onLogout} disabled={pending}>
           {t('nav.logout')}
         </button>
       </header>

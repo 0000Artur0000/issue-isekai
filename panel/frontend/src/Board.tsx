@@ -8,6 +8,7 @@ import {
   FilterBar,
   filterQuery,
   ReportCard,
+  STATUS_ICONS,
   STATUSES,
   type Page,
   type Priority,
@@ -129,10 +130,22 @@ export default function Board() {
 
   return (
     <>
-      <h1>{t('board.title')}</h1>
+      <div className="page-head">
+        <img src="/assets/mc/item/writable_book.png" alt="" />
+        <h1>{t('board.title')}</h1>
+      </div>
       <FilterBar />
-      {error && <p role="alert">{error}</p>}
-      {!columns && !error && <p role="status">{t('common.loading')}</p>}
+      {error && (
+        <div className="state-error mc-panel" role="alert">
+          <img src="/assets/mc/item/barrier.png" alt="" />
+          {error}
+        </div>
+      )}
+      {!columns && !error && (
+        <p role="status" className="state-loading">
+          {t('common.loading')}
+        </p>
+      )}
       {columns && (
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="board">
@@ -141,11 +154,13 @@ export default function Board() {
               return (
                 <section
                   key={status}
-                  className={`column status-${status}`}
+                  className={`column mc-panel status-${status}`}
                   aria-label={statusLabel(status)}
                 >
                   <h2>
-                    {statusLabel(status)} <span className="meta">{column.total}</span>
+                    <img className="mc-ico" src={`/assets/mc/${STATUS_ICONS[status]}`} alt="" />
+                    {statusLabel(status)}
+                    <span className="column-count">{column.total}</span>
                   </h2>
                   <Droppable droppableId={status}>
                     {(provided) => (
@@ -169,6 +184,12 @@ export default function Board() {
                           </Draggable>
                         ))}
                         {provided.placeholder}
+                        {column.reports.length === 0 && (
+                          <div className="column-empty">
+                            <img src="/assets/mc/big/chest_minecart.png" alt="" />
+                            {t('board.empty')}
+                          </div>
+                        )}
                         {column.total > column.reports.length && (
                           <p className="meta">{t('board.more', { count: column.total - column.reports.length })}</p>
                         )}

@@ -65,6 +65,8 @@ docker compose ps
 
 Перед первым запуском замените в `.env` как минимум `POSTGRES_PASSWORD` и `BOOTSTRAP_ADMIN_PASSWORD`. `APP_LOCALE=ru|en` задаёт язык всей панели; неизвестное значение останавливает запуск. Панель по умолчанию доступна на `http://127.0.0.1:8080`.
 
+Для release-установки на Ubuntu используйте `install.sh` из GitHub Release; инструкция находится в `INSTALL.md`. По умолчанию `PANEL_BIND_ADDRESS=127.0.0.1`; для публичного адреса нужен HTTPS/reverse proxy.
+
 Первый администратор создаётся только в пустой базе из:
 
 - `BOOTSTRAP_ADMIN_USERNAME`;

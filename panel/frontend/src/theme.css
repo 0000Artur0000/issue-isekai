@@ -1,0 +1,616 @@
+/* ============================================================
+   Amethyst Citadel — дизайн-токены и Minecraft-примитивы.
+   Текстуры: /assets/mc (см. NOTICE.md). Шрифты: /fonts (OFL).
+   ============================================================ */
+
+@font-face {
+  font-family: 'Monocraft';
+  src: url('/fonts/Monocraft.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Monocraft';
+  src: url('/fonts/Monocraft-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Unbounded';
+  src: url('/fonts/Unbounded.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+
+  --font-pixel: 'Monocraft', 'Inter', monospace;
+  --font-display: 'Unbounded', 'Monocraft', sans-serif;
+  --font-body: 'Inter', system-ui, 'Segoe UI', sans-serif;
+
+  /* Глубина */
+  --bg-0: #0a0c10;
+  --bg-1: #10131b;
+  --bg-2: #171a26;
+  --panel: #1c1f2e;
+  --panel-2: #232738;
+  --edge: #ffffff14;
+  --edge-strong: #ffffff2b;
+
+  /* Текст */
+  --ink: #eae7f5;
+  --muted: #9b95ba;
+  --faint: #6c6788;
+
+  /* Фирма */
+  --amethyst: #9d5cff;
+  --amethyst-soft: #9d5cff24;
+  --gold: #ffc94d;
+  --emerald: #3ddc84;
+  --diamond: #54e0ff;
+  --redstone: #ff5252;
+  --lapis: #5c7cff;
+
+  /* Статусы репортов */
+  --status-NEW: var(--diamond);
+  --status-IN_PROGRESS: var(--gold);
+  --status-RESOLVED: var(--emerald);
+  --status-REJECTED: var(--redstone);
+  --status-DUPLICATE: var(--amethyst);
+
+  /* Приоритеты */
+  --priority-LOW: var(--muted);
+  --priority-NORMAL: var(--ink);
+  --priority-HIGH: #ff9e3d;
+  --priority-CRITICAL: var(--redstone);
+
+  /* Эффекты */
+  --glow-amethyst: 0 0 12px #9d5cff66, 0 0 32px #9d5cff26;
+  --glow-gold: 0 0 12px #ffc94d55;
+  --shadow-1: 0 2px 0 #00000080;
+  --shadow-2: 0 8px 24px #00000080;
+
+  font-family: var(--font-body);
+}
+
+/* ---------- Фон: тайлы сланца + свечение + виньетка ---------- */
+
+body {
+  margin: 0;
+  background: var(--bg-0);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(1100px 500px at 85% -10%, #9d5cff17, transparent 60%),
+    radial-gradient(900px 480px at -10% 110%, #54e0ff0f, transparent 55%),
+    linear-gradient(#0b0d13e8, #0b0d13e8),
+    url('/assets/mc/block/deepslate_tiles.png') repeat;
+  background-size: auto, auto, auto, 40px;
+  image-rendering: pixelated;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('/assets/mc/gui/vignette.png') center / 100% 100% no-repeat;
+  opacity: 0.35;
+}
+
+::selection {
+  background: #9d5cff66;
+  color: #fff;
+}
+
+/* ---------- Скроллбар ---------- */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d0f16;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2e3350;
+  border: 2px solid #0d0f16;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--amethyst);
+}
+
+/* ---------- Типографика ---------- */
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+h1 {
+  font-size: 22px;
+  text-shadow: 0 2px 0 #000;
+}
+
+h2 {
+  font-size: 15px;
+}
+
+a {
+  color: var(--diamond);
+}
+
+a:hover {
+  color: #8decff;
+  text-shadow: 0 0 8px #54e0ff88;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  box-shadow: var(--glow-gold);
+}
+
+.mono {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+}
+
+.pixel {
+  font-family: var(--font-pixel);
+}
+
+.meta {
+  margin: 2px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  z-index: 30;
+}
+
+.skip-link:focus {
+  left: 8px;
+  top: 8px;
+  padding: 6px 12px;
+  background: var(--panel-2);
+  color: var(--ink);
+}
+
+/* ---------- Иконки-ассеты ---------- */
+
+.mc-ico {
+  width: 18px;
+  height: 18px;
+  image-rendering: pixelated;
+  vertical-align: -3px;
+  filter: drop-shadow(0 1px 0 #000);
+}
+
+.mc-ico--sm {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+}
+
+.mc-ico--lg {
+  width: 32px;
+  height: 32px;
+}
+
+/* ---------- Панели (advancement box nine-slice) ---------- */
+
+.mc-panel {
+  border-style: solid;
+  border-width: 10px;
+  border-image: url('/assets/mc/gui/tint/panel_steel.png') 10 fill / 10px stretch;
+  background: transparent;
+  image-rendering: pixelated;
+}
+
+.mc-panel--gold {
+  border-image-source: url('/assets/mc/gui/tint/panel_gold.png');
+}
+
+.mc-frame {
+  border-style: solid;
+  border-width: 10px;
+  border-image: url('/assets/mc/gui/title_box.png') 10 fill / 10px stretch;
+  background: transparent;
+  image-rendering: pixelated;
+}
+
+.mc-frame--amethyst {
+  border-image-source: url('/assets/mc/gui/tint/title_amethyst.png');
+}
+
+/* ---------- Кнопки (widgets nine-slice) ---------- */
+
+.mc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 2px 14px 5px;
+  border-style: solid;
+  border-width: 5px;
+  border-image: url('/assets/mc/gui/button.png') 3 fill / 5px stretch;
+  background: transparent;
+  image-rendering: pixelated;
+  color: #ece9f7;
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  line-height: 1;
+  text-shadow: 0 2px 0 #000000a0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mc-btn:hover:not(:disabled) {
+  border-image-source: url('/assets/mc/gui/button_highlighted.png');
+  color: #fff;
+}
+
+.mc-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(0.9);
+}
+
+.mc-btn:disabled {
+  border-image-source: url('/assets/mc/gui/button_disabled.png');
+  color: #8f8ba8;
+  cursor: default;
+  text-shadow: none;
+}
+
+.mc-btn--sm {
+  min-height: 28px;
+  padding: 1px 10px 4px;
+  font-size: 11px;
+  border-width: 4px;
+}
+
+.mc-btn--primary {
+  border-image-source: url('/assets/mc/gui/tint/button_amethyst.png');
+  color: #f2eaff;
+  text-shadow: 0 2px 0 #2a1650;
+}
+
+.mc-btn--primary:hover:not(:disabled) {
+  border-image-source: url('/assets/mc/gui/tint/button_amethyst_hi.png');
+  box-shadow: var(--glow-amethyst);
+}
+
+.mc-btn--emerald {
+  border-image-source: url('/assets/mc/gui/tint/button_emerald.png');
+  color: #eafff2;
+  text-shadow: 0 2px 0 #0c3a20;
+}
+
+.mc-btn--emerald:hover:not(:disabled) {
+  border-image-source: url('/assets/mc/gui/tint/button_emerald_hi.png');
+  box-shadow: 0 0 12px #3ddc8455;
+}
+
+.mc-btn--gold {
+  border-image-source: url('/assets/mc/gui/tint/button_gold.png');
+  color: #fff6e0;
+  text-shadow: 0 2px 0 #4a3208;
+}
+
+.mc-btn--gold:hover:not(:disabled) {
+  border-image-source: url('/assets/mc/gui/tint/button_gold_hi.png');
+  box-shadow: var(--glow-gold);
+}
+
+.mc-btn--danger {
+  border-image-source: url('/assets/mc/gui/tint/button_redstone.png');
+  color: #ffecec;
+  text-shadow: 0 2px 0 #4a0e0e;
+}
+
+.mc-btn--danger:hover:not(:disabled) {
+  box-shadow: 0 0 12px #ff525255;
+}
+
+/* ---------- Поля ввода ---------- */
+
+.mc-input {
+  border-style: solid;
+  border-width: 3px;
+  border-image: url('/assets/mc/gui/text_field.png') 1 fill / 3px stretch;
+  background: transparent;
+  image-rendering: pixelated;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 7px 10px;
+  min-height: 34px;
+}
+
+.mc-input:focus {
+  border-image-source: url('/assets/mc/gui/text_field_highlighted.png');
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.mc-input::placeholder {
+  color: var(--faint);
+}
+
+select.mc-input {
+  appearance: none;
+  padding-right: 28px;
+  background-image: linear-gradient(45deg, transparent 48%, var(--muted) 52%, transparent 58%);
+  background-size: 10px 10px;
+  background-position: right 10px center;
+  background-repeat: no-repeat;
+}
+
+select.mc-input option {
+  background: var(--bg-2);
+  color: var(--ink);
+}
+
+/* ---------- Слот инвентаря ---------- */
+
+.mc-slot {
+  border-style: solid;
+  border-width: 2px;
+  border-image: url('/assets/mc/gui/slot.png') 1 fill / 2px stretch;
+  background: transparent;
+  image-rendering: pixelated;
+}
+
+/* ---------- Тултип предмета (фирменный фиолетовый) ---------- */
+
+.mc-tooltip {
+  background: #100010f0;
+  border: 2px solid transparent;
+  border-image: linear-gradient(180deg, #5000ff, #28007f) 2;
+  box-shadow:
+    0 0 0 2px #100010f0,
+    0 10px 28px #000000cc;
+  padding: 9px 11px;
+}
+
+.mc-tooltip p {
+  margin: 2px 0;
+  font-size: 13px;
+}
+
+.tooltip-name {
+  font-weight: 600;
+}
+
+.tooltip-lore {
+  color: #a8a8b8;
+}
+
+.tooltip-enchant {
+  color: #8a8aff;
+}
+
+.tooltip-model {
+  color: #5a5a72;
+  font-size: 11px;
+}
+
+/* ---------- Чипы/бейджи ---------- */
+
+.mc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px 3px;
+  border: 1px solid currentcolor;
+  border-radius: 2px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  background: color-mix(in srgb, currentcolor 12%, transparent);
+  text-shadow: 0 1px 0 #000;
+}
+
+.mc-chip.status-NEW { color: var(--status-NEW); }
+.mc-chip.status-IN_PROGRESS { color: var(--status-IN_PROGRESS); }
+.mc-chip.status-RESOLVED { color: var(--status-RESOLVED); }
+.mc-chip.status-REJECTED { color: var(--status-REJECTED); }
+.mc-chip.status-DUPLICATE { color: var(--status-DUPLICATE); }
+.mc-chip.priority-LOW { color: var(--priority-LOW); }
+.mc-chip.priority-NORMAL { color: var(--priority-NORMAL); }
+.mc-chip.priority-HIGH { color: var(--priority-HIGH); }
+.mc-chip.priority-CRITICAL { color: var(--priority-CRITICAL); }
+
+/* ---------- Зачарованный блик ---------- */
+
+.mc-glint {
+  position: relative;
+  overflow: hidden;
+}
+
+.mc-glint::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  background: url('/assets/mc/gui/enchanted_glint.png') repeat;
+  background-size: 96px;
+  mix-blend-mode: screen;
+  opacity: 0.28;
+  animation: mc-glint-slide 5s linear infinite;
+}
+
+@keyframes mc-glint-slide {
+  from { background-position: 0 0; }
+  to { background-position: 96px 96px; }
+}
+
+/* ---------- XP-полоска ---------- */
+
+.mc-xp {
+  position: relative;
+  height: 10px;
+  border-style: solid;
+  border-width: 2px;
+  border-image: url('/assets/mc/gui/xp_bg.png') 1 fill / 2px stretch;
+  background: transparent;
+  image-rendering: pixelated;
+}
+
+.mc-xp > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  border-style: solid;
+  border-width: 2px;
+  border-image: url('/assets/mc/gui/xp_progress.png') 1 fill / 2px stretch;
+  image-rendering: pixelated;
+}
+
+/* ---------- Частицы (логин) ---------- */
+
+.fx-field {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.fx-p {
+  position: absolute;
+  bottom: -24px;
+  width: 12px;
+  height: 12px;
+  background-size: contain;
+  image-rendering: pixelated;
+  opacity: 0;
+  animation: mc-float linear infinite;
+}
+
+.fx-p--portal { background-image: url('/assets/mc/particle/portal.png'); }
+.fx-p--glint { background-image: url('/assets/mc/particle/glint.png'); }
+.fx-p--hit { background-image: url('/assets/mc/particle/enchanted_hit.png'); }
+
+@keyframes mc-float {
+  0% { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+  8% { opacity: 0.85; }
+  50% { transform: translateY(-52vh) translateX(2.5vw) scale(1.25); }
+  92% { opacity: 0.7; }
+  100% { transform: translateY(-106vh) translateX(-1.5vw) scale(0.85); opacity: 0; }
+}
+
+.fx-p.n1 { left: 6%; animation-duration: 17s; animation-delay: 0s; }
+.fx-p.n2 { left: 14%; animation-duration: 23s; animation-delay: 3s; }
+.fx-p.n3 { left: 23%; animation-duration: 19s; animation-delay: 7s; }
+.fx-p.n4 { left: 31%; animation-duration: 26s; animation-delay: 1s; }
+.fx-p.n5 { left: 44%; animation-duration: 21s; animation-delay: 5s; }
+.fx-p.n6 { left: 52%; animation-duration: 18s; animation-delay: 9s; }
+.fx-p.n7 { left: 61%; animation-duration: 24s; animation-delay: 2s; }
+.fx-p.n8 { left: 70%; animation-duration: 20s; animation-delay: 6s; }
+.fx-p.n9 { left: 78%; animation-duration: 27s; animation-delay: 4s; }
+.fx-p.n10 { left: 86%; animation-duration: 22s; animation-delay: 8s; }
+.fx-p.n11 { left: 93%; animation-duration: 16s; animation-delay: 11s; }
+.fx-p.n12 { left: 38%; animation-duration: 25s; animation-delay: 12s; }
+
+/* ---------- Состояния ---------- */
+
+.state-empty,
+.state-loading,
+.state-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.state-empty img,
+.state-error img {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+  opacity: 0.55;
+}
+
+.state-error {
+  color: var(--redstone);
+}
+
+[role='alert'] {
+  color: var(--redstone);
+  text-shadow: 0 1px 0 #000;
+}
+
+.skeleton {
+  border-radius: 2px;
+  background: linear-gradient(100deg, #ffffff08 40%, #ffffff14 50%, #ffffff08 60%);
+  background-size: 220% 100%;
+  animation: mc-shimmer 1.4s linear infinite;
+}
+
+@keyframes mc-shimmer {
+  from { background-position: 130% 0; }
+  to { background-position: -30% 0; }
+}
+
+/* ---------- Доступность: выключаем магию по запросу ОС ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-p,
+  .mc-glint::after,
+  .skeleton {
+    animation: none !important;
+  }
+
+  .fx-p {
+    display: none;
+  }
+
+  .mc-btn:active:not(:disabled) {
+    transform: none;
+  }
+}

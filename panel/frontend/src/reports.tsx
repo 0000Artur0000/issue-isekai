@@ -32,6 +32,23 @@ export const PRIORITIES: Priority[] = ['LOW', 'NORMAL', 'HIGH', 'CRITICAL']
 
 const FILTER_KEYS = ['search', 'serverId', 'priority', 'assigneeId', 'category', 'status']
 
+const MC = '/assets/mc'
+
+export const STATUS_ICONS: Record<Status, string> = {
+  NEW: 'item/paper.png',
+  IN_PROGRESS: 'item/clock_00.png',
+  RESOLVED: 'item/emerald.png',
+  REJECTED: 'item/barrier.png',
+  DUPLICATE: 'item/amethyst_shard.png',
+}
+
+export const PRIORITY_ICONS: Record<Priority, string> = {
+  LOW: 'item/wooden_sword.png',
+  NORMAL: 'item/stone_sword.png',
+  HIGH: 'item/diamond_sword.png',
+  CRITICAL: 'item/netherite_sword.png',
+}
+
 export function filterQuery(params: URLSearchParams): string {
   const query = new URLSearchParams()
   for (const key of FILTER_KEYS) {
@@ -65,17 +82,19 @@ export function FilterBar({ withStatus = false }: { withStatus?: boolean }) {
     <form className="filters" key={params.toString()} onSubmit={apply}>
       <input
         name="search"
+        className="mc-input"
         aria-label={t('filters.search')}
         placeholder={t('filters.search-placeholder')}
         defaultValue={params.get('search') ?? ''}
       />
       <input
         name="category"
+        className="mc-input"
         aria-label={t('filters.category')}
         placeholder={t('filters.category')}
         defaultValue={params.get('category') ?? ''}
       />
-      <select name="serverId" aria-label={t('filters.server')} defaultValue={params.get('serverId') ?? ''}>
+      <select name="serverId" className="mc-input" aria-label={t('filters.server')} defaultValue={params.get('serverId') ?? ''}>
         <option value="">{t('filters.all-servers')}</option>
         {choices?.servers.map((server) => (
           <option key={server.id} value={server.id}>
@@ -83,7 +102,7 @@ export function FilterBar({ withStatus = false }: { withStatus?: boolean }) {
           </option>
         ))}
       </select>
-      <select name="priority" aria-label={t('filters.priority')} defaultValue={params.get('priority') ?? ''}>
+      <select name="priority" className="mc-input" aria-label={t('filters.priority')} defaultValue={params.get('priority') ?? ''}>
         <option value="">{t('filters.any-priority')}</option>
         {PRIORITIES.map((value) => (
           <option key={value} value={value}>
@@ -91,7 +110,7 @@ export function FilterBar({ withStatus = false }: { withStatus?: boolean }) {
           </option>
         ))}
       </select>
-      <select name="assigneeId" aria-label={t('filters.assignee')} defaultValue={params.get('assigneeId') ?? ''}>
+      <select name="assigneeId" className="mc-input" aria-label={t('filters.assignee')} defaultValue={params.get('assigneeId') ?? ''}>
         <option value="">{t('filters.any-assignee')}</option>
         {choices?.assignees.map((assignee) => (
           <option key={assignee.id} value={assignee.id}>
@@ -100,7 +119,7 @@ export function FilterBar({ withStatus = false }: { withStatus?: boolean }) {
         ))}
       </select>
       {withStatus && (
-        <select name="status" aria-label={t('filters.status')} defaultValue={params.get('status') ?? ''}>
+        <select name="status" className="mc-input" aria-label={t('filters.status')} defaultValue={params.get('status') ?? ''}>
           <option value="">{t('filters.any-status')}</option>
           {STATUSES.map((status) => (
             <option key={status} value={status}>
@@ -109,8 +128,8 @@ export function FilterBar({ withStatus = false }: { withStatus?: boolean }) {
           ))}
         </select>
       )}
-      <button type="submit">{t('filters.apply')}</button>
-      <button type="button" onClick={() => setParams({}, { replace: true })}>
+      <button type="submit" className="mc-btn mc-btn--primary mc-btn--sm">{t('filters.apply')}</button>
+      <button type="button" className="mc-btn mc-btn--sm" onClick={() => setParams({}, { replace: true })}>
         {t('filters.reset')}
       </button>
     </form>
@@ -148,17 +167,29 @@ export function ReportCard({
   }
 
   return (
-    <article className="card">
+    <article className={`card priority-${report.priority}${report.priority === 'CRITICAL' ? ' mc-glint' : ''}`}>
       <header>
-        <Link to={`/reports/${report.id}`}>{report.category}</Link>
-        <span className={`badge priority-${report.priority}`}>
+        <Link className="card-cat" to={`/reports/${report.id}`}>
+          <img className="mc-ico mc-ico--sm" src={`${MC}/item/book.png`} alt="" />
+          {report.category}
+        </Link>
+        <span className={`mc-chip priority-${report.priority}`}>
+          <img className="mc-ico mc-ico--sm" src={`${MC}/${PRIORITY_ICONS[report.priority]}`} alt="" />
           {priorityLabel(report.priority)}
         </span>
       </header>
       <p className="snippet">{report.descriptionSnippet}</p>
       <p className="meta">
-        {report.playerName} · {report.serverName} ·{' '}
-        {formatDate(report.createdAt, 'short')}
+        <span>
+          <img className="mc-ico mc-ico--sm" src={`${MC}/item/name_tag.png`} alt="" /> {report.playerName}
+        </span>
+        <span>
+          <img className="mc-ico mc-ico--sm" src={`${MC}/block/beacon.png`} alt="" /> {report.serverName}
+        </span>
+        <span>
+          <img className="mc-ico mc-ico--sm" src={`${MC}/item/clock_00.png`} alt="" />{' '}
+          {formatDate(report.createdAt, 'short')}
+        </span>
       </p>
       {report.assigneeName && <p className="meta">{t('report.assignee')}: {report.assigneeName}</p>}
       {report.participants.length > 0 && (
@@ -167,9 +198,16 @@ export function ReportCard({
         </p>
       )}
       {can(me, 'reports.participate') && (
-        <button type="button" onClick={toggleParticipation} disabled={pending}>
-          {joined ? t('report.leave') : t('report.join')}
-        </button>
+        <div className="card-actions">
+          <button
+            type="button"
+            className={`mc-btn mc-btn--sm${joined ? '' : ' mc-btn--emerald'}`}
+            onClick={toggleParticipation}
+            disabled={pending}
+          >
+            {joined ? t('report.leave') : t('report.join')}
+          </button>
+        </div>
       )}
     </article>
   )

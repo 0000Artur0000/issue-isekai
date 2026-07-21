@@ -51,14 +51,33 @@ export default function Timeline() {
   let previousDay = ''
   return (
     <>
-      <h1>{t('timeline.title')}</h1>
+      <div className="page-head">
+        <img src="/assets/mc/item/clock_00.png" alt="" />
+        <h1>{t('timeline.title')}</h1>
+      </div>
       <FilterBar withStatus />
-      {error && <p role="alert">{error}</p>}
-      {!loading && !error && reports.length === 0 && <p>{t('timeline.empty')}</p>}
+      {error && (
+        <div className="state-error mc-panel" role="alert">
+          <img src="/assets/mc/item/barrier.png" alt="" />
+          {error}
+        </div>
+      )}
+      {!loading && !error && reports.length === 0 && (
+        <div className="state-empty mc-panel">
+          <img src="/assets/mc/big/chest_minecart.png" alt="" />
+          {t('timeline.empty')}
+        </div>
+      )}
       <div className="timeline">
         {reports.map((report) => {
           const day = formatDate(report.createdAt, 'long')
-          const heading = day !== previousDay ? <h2>{day}</h2> : null
+          const heading =
+            day !== previousDay ? (
+              <h2>
+                <img src="/assets/mc/item/amethyst_shard.png" alt="" />
+                {day}
+              </h2>
+            ) : null
           previousDay = day
           return (
             <Fragment key={report.id}>
@@ -68,9 +87,13 @@ export default function Timeline() {
           )
         })}
       </div>
-      {loading && <p role="status">{t('common.loading')}</p>}
+      {loading && (
+        <p role="status" className="state-loading">
+          {t('common.loading')}
+        </p>
+      )}
       {!loading && reports.length < total && (
-        <button type="button" onClick={() => setPage(page + 1)}>
+        <button type="button" className="mc-btn mc-btn--primary" onClick={() => setPage(page + 1)}>
           {t('timeline.more', { count: total - reports.length })}
         </button>
       )}

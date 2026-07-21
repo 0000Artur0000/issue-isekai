@@ -39,7 +39,9 @@ cp "$panel_jar" "$output/issue-isekai-panel-$version.jar"
 cp "$plugin_jar" "$output/issue-isekai-plugin-$version.jar"
 sed "s|^    build: \.$|    image: $image@$digest|" compose.yaml > "$output/compose.yaml"
 grep -Fq "    image: $image@$digest" "$output/compose.yaml"
-! grep -Eq '^    build:' "$output/compose.yaml"
+if grep -Eq '^    build:' "$output/compose.yaml"; then
+  exit 1
+fi
 chmod 755 "$output/install.sh"
 
 (

@@ -33,6 +33,7 @@ function CopyButton({ value }: { value: string }) {
   return (
     <button
       type="button"
+      className="mc-btn mc-btn--sm"
       onClick={() => navigator.clipboard.writeText(value).then(() => setCopied(true))}
     >
       {copied ? t('common.copied') : t('common.copy')}
@@ -96,15 +97,16 @@ function Packs({ server }: { server: Server }) {
       <h3>{t('packs.title', { name: server.name })}</h3>
       {can(me, 'servers.packs.upload') && (
         <form className="filters" onSubmit={upload}>
-          <input name="displayName" aria-label={t('packs.revision-name')} placeholder={t('packs.name-placeholder')} required />
+          <input name="displayName" className="mc-input" aria-label={t('packs.revision-name')} placeholder={t('packs.name-placeholder')} required />
           <input
             name="minecraftVersion"
+            className="mc-input"
             aria-label={t('packs.minecraft-version')}
             defaultValue="26.1.2"
             required
           />
           <input name="file" type="file" accept=".zip" aria-label={t('packs.file')} required />
-          <button type="submit" disabled={pending}>
+          <button type="submit" className="mc-btn mc-btn--primary mc-btn--sm" disabled={pending}>
             {t('common.upload')}
           </button>
           {uploadError && <p role="alert">{uploadError}</p>}
@@ -142,9 +144,9 @@ function Packs({ server }: { server: Server }) {
                   <td>{formatDate(revision.createdAt)}</td>
                   <td>
                     {revision.active ? (
-                      t('packs.active-value')
+                      <span className="mc-chip status-RESOLVED">{t('packs.active-value')}</span>
                     ) : can(me, 'servers.packs.activate') ? (
-                      <button type="button" disabled={pending} onClick={() => activate(revision)}>
+                      <button type="button" className="mc-btn mc-btn--emerald mc-btn--sm" disabled={pending} onClick={() => activate(revision)}>
                         {t('packs.activate')}
                       </button>
                     ) : (
@@ -159,6 +161,13 @@ function Packs({ server }: { server: Server }) {
       )}
     </section>
   )
+}
+
+const SERVER_STATE: Record<Server['state'], { lamp: string; chip: string }> = {
+  ONLINE: { lamp: 'block/redstone_lamp_on.png', chip: 'status-RESOLVED' },
+  OFFLINE: { lamp: 'block/redstone_lamp.png', chip: 'status-REJECTED' },
+  NEVER_CONNECTED: { lamp: 'block/lapis_block.png', chip: 'status-NEW' },
+  DISABLED: { lamp: 'block/coal_block.png', chip: 'priority-LOW' },
 }
 
 export default function Servers() {
@@ -243,16 +252,31 @@ export default function Servers() {
     }
   }
 
-  if (error) return <p role="alert">{error}</p>
-  if (!servers) return <p role="status">{t('common.loading')}</p>
+  if (error)
+    return (
+      <div className="state-error mc-panel" role="alert">
+        <img src="/assets/mc/item/barrier.png" alt="" />
+        {error}
+      </div>
+    )
+  if (!servers) return <p role="status" className="state-loading">{t('common.loading')}</p>
 
   return (
     <>
-      <h1>{t('servers.title')}</h1>
+      <div className="page-head">
+        <img src="/assets/mc/block/beacon.png" alt="" />
+        <h1>{t('servers.title')}</h1>
+      </div>
       {can(me, 'servers.create') && (
-        <form className="filters" onSubmit={create}>
-          <input name="name" aria-label={t('servers.server-name')} placeholder={t('servers.server-name')} required />
-          <button type="submit" disabled={pending}>
+        <form className="create-bar" onSubmit={create}>
+          <input
+            name="name"
+            className="mc-input"
+            aria-label={t('servers.server-name')}
+            placeholder={t('servers.server-name')}
+            required
+          />
+          <button type="submit" className="mc-btn mc-btn--emerald mc-btn--sm" disabled={pending}>
             {t('common.create')}
           </button>
           {formError && <p role="alert">{formError}</p>}
@@ -265,78 +289,91 @@ export default function Servers() {
           </p>
           <p className="mono">{credentials.apiKey}</p>
           <CopyButton value={credentials.apiKey} />{' '}
-          <button type="button" onClick={() => setCredentials(null)}>
+          <button type="button" className="mc-btn mc-btn--sm" onClick={() => setCredentials(null)}>
             {t('common.hide')}
           </button>
         </div>
       )}
-      {servers.length === 0 && <p>{t('servers.empty')}</p>}
+      {servers.length === 0 && (
+        <div className="state-empty mc-panel">
+          <img src="/assets/mc/big/beacon.png" alt="" />
+          {t('servers.empty')}
+        </div>
+      )}
       {servers.length > 0 && (
-        <div className="table-scroll">
-          <table>
-            <caption className="visually-hidden">{t('servers.table')}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t('common.name')}</th>
-                <th scope="col">{t('common.status')}</th>
-                <th scope="col">{t('servers.players')}</th>
-                <th scope="col">{t('common.created')}</th>
-                <th scope="col">{t('servers.last-heartbeat')}</th>
-                <th scope="col">{t('servers.last-report')}</th>
-                <th scope="col">{t('common.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {servers.map((server) => (
-                <tr key={server.id}>
-                  <td>{server.name}</td>
-                  <td>
-                    <span className={`badge server-${server.state.toLowerCase()}`}>
-                      {serverStateLabel(server.state)}
-                    </span>
-                  </td>
-                  <td>
-                    {server.state === 'ONLINE'
-                      ? `${server.onlinePlayers ?? 0}/${server.maxPlayers ?? 0}`
-                      : t('common.none')}
-                  </td>
-                  <td>{formatDate(server.createdAt)}</td>
-                  <td>
-                    {server.lastHeartbeatAt
-                      ? formatDate(server.lastHeartbeatAt)
-                      : t('common.none')}
-                  </td>
-                  <td>
+        <div className="servers-grid">
+          {servers.map((server) => {
+            const visual = SERVER_STATE[server.state]
+            const online = server.onlinePlayers ?? 0
+            const max = server.maxPlayers ?? 0
+            const fill = server.state === 'ONLINE' && max > 0 ? Math.min(100, (online / max) * 100) : 0
+            return (
+              <section key={server.id} className="server-card mc-panel" aria-label={server.name}>
+                <div className="server-head">
+                  <img
+                    className={`server-lamp${server.state === 'ONLINE' ? ' on' : ''}`}
+                    src={`/assets/mc/${visual.lamp}`}
+                    alt=""
+                  />
+                  <span className="server-name">{server.name}</span>
+                  <span className={`mc-chip ${visual.chip}`}>{serverStateLabel(server.state)}</span>
+                </div>
+                <div className="server-stats">
+                  <div className="mc-xp" role="img" aria-label={`${online}/${max}`}>
+                    <i style={{ width: `${fill}%` }} />
+                  </div>
+                  {server.state === 'ONLINE' ? `${online}/${max}` : t('common.none')}
+                </div>
+                <div className="server-times">
+                  <span>
+                    <img className="mc-ico mc-ico--sm" src="/assets/mc/item/clock_00.png" alt="" />{' '}
+                    {t('servers.last-heartbeat')}:{' '}
+                    {server.lastHeartbeatAt ? formatDate(server.lastHeartbeatAt) : t('common.none')}
+                  </span>
+                  <span>
+                    <img className="mc-ico mc-ico--sm" src="/assets/mc/item/paper.png" alt="" />{' '}
+                    {t('servers.last-report')}:{' '}
                     {server.lastReportAt ? formatDate(server.lastReportAt) : t('common.none')}
-                  </td>
-                  <td className="actions">
-                    {can(me, 'servers.keys.rotate') && (
-                      <button type="button" disabled={pending} onClick={() => rotate(server)}>
-                        {t('servers.rotate')}
-                      </button>
-                    )}
-                    {can(me, 'servers.state.update') && (
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() => setEnabled(server, !server.enabled)}
-                      >
-                        {server.enabled ? t('common.disable') : t('common.enable')}
-                      </button>
-                    )}
-                    {can(me, 'servers.packs.view') && (
-                      <button
-                        type="button"
-                        onClick={() => setPacksFor(packsFor?.id === server.id ? null : server)}
-                      >
-                        {packsFor?.id === server.id ? t('servers.hide-packs') : t('servers.show-packs')}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </span>
+                  <span>
+                    <img className="mc-ico mc-ico--sm" src="/assets/mc/block/gold_block.png" alt="" />{' '}
+                    {t('common.created')}: {formatDate(server.createdAt)}
+                  </span>
+                </div>
+                <div className="server-actions">
+                  {can(me, 'servers.keys.rotate') && (
+                    <button
+                      type="button"
+                      className="mc-btn mc-btn--gold mc-btn--sm"
+                      disabled={pending}
+                      onClick={() => rotate(server)}
+                    >
+                      {t('servers.rotate')}
+                    </button>
+                  )}
+                  {can(me, 'servers.state.update') && (
+                    <button
+                      type="button"
+                      className={`mc-btn mc-btn--sm ${server.enabled ? 'mc-btn--danger' : 'mc-btn--emerald'}`}
+                      disabled={pending}
+                      onClick={() => setEnabled(server, !server.enabled)}
+                    >
+                      {server.enabled ? t('common.disable') : t('common.enable')}
+                    </button>
+                  )}
+                  {can(me, 'servers.packs.view') && (
+                    <button
+                      type="button"
+                      className="mc-btn mc-btn--primary mc-btn--sm"
+                      onClick={() => setPacksFor(packsFor?.id === server.id ? null : server)}
+                    >
+                      {packsFor?.id === server.id ? t('servers.hide-packs') : t('servers.show-packs')}
+                    </button>
+                  )}
+                </div>
+              </section>
+            )
+          })}
         </div>
       )}
       {packsFor && <Packs server={packsFor} />}
