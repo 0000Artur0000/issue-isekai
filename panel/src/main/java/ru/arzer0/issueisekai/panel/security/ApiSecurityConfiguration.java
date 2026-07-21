@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -24,14 +26,23 @@ import org.springframework.security.web.authentication.LoginUrlAuthenticationEnt
 import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import ru.arzer0.issueisekai.panel.api.PanelLocale;
 import ru.arzer0.issueisekai.panel.user.UserAccountRepository;
 import ru.arzer0.issueisekai.panel.user.UserRole;
 import ru.arzer0.issueisekai.panel.user.UserRoleRepository;
-import ru.arzer0.issueisekai.panel.api.PanelLocale;
 
 @Configuration
 @EnableMethodSecurity
-public class ApiSecurityConfiguration {
+public class ApiSecurityConfiguration implements WebMvcConfigurer {
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/fonts/**")
+                .addResourceLocations("classpath:/static/fonts/")
+                .setCacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable());
+    }
+
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
@@ -43,7 +54,7 @@ public class ApiSecurityConfiguration {
                 .startsWith(request.getContextPath() + "/api/");
         return http.authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
-                                "/assets/**", "/favicon.ico", "/favicon.svg", "/index.html")
+                                "/assets/**", "/fonts/**", "/favicon.ico", "/favicon.svg", "/index.html")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/reports")
                         .permitAll()

@@ -74,6 +74,9 @@ class UserServiceTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> service.update(lastAdmin.getId(), operator.getId(), true, "", adminActor));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.update(lastAdmin.getId(), admin.getId(), false, "", adminActor));
 
         assertThrows(
                 AccessDeniedException.class,

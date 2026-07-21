@@ -306,7 +306,6 @@ export default function Servers() {
             const visual = SERVER_STATE[server.state]
             const online = server.onlinePlayers ?? 0
             const max = server.maxPlayers ?? 0
-            const fill = server.state === 'ONLINE' && max > 0 ? Math.min(100, (online / max) * 100) : 0
             return (
               <section key={server.id} className="server-card mc-panel" aria-label={server.name}>
                 <div className="server-head">
@@ -319,9 +318,12 @@ export default function Servers() {
                   <span className={`mc-chip ${visual.chip}`}>{serverStateLabel(server.state)}</span>
                 </div>
                 <div className="server-stats">
-                  <div className="mc-xp" role="img" aria-label={`${online}/${max}`}>
-                    <i style={{ width: `${fill}%` }} />
-                  </div>
+                  <progress
+                    className="mc-xp"
+                    max={Math.max(max, 1)}
+                    value={server.state === 'ONLINE' ? online : 0}
+                    aria-label={`${online}/${max}`}
+                  />
                   {server.state === 'ONLINE' ? `${online}/${max}` : t('common.none')}
                 </div>
                 <div className="server-times">

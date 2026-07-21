@@ -15,7 +15,7 @@ import {
   type Participant,
   type Priority,
   type Status,
-} from './reports'
+} from './report-model'
 
 type Detail = {
   id: string

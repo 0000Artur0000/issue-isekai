@@ -2,7 +2,8 @@ import { Fragment, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from './api'
 import { formatDate, t } from './i18n'
-import { FilterBar, filterQuery, ReportCard, type Page, type ReportSummary } from './reports'
+import { filterQuery, type Page, type ReportSummary } from './report-model'
+import { FilterBar, ReportCard } from './reports'
 
 const PAGE_SIZE = 20
 export default function Timeline() {

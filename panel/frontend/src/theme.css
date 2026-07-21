@@ -83,6 +83,12 @@
   font-family: var(--font-body);
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 /* ---------- Фон: тайлы сланца + свечение + виньетка ---------- */
 
 body {
@@ -489,8 +495,9 @@ select.mc-input option {
 /* ---------- XP-полоска ---------- */
 
 .mc-xp {
-  position: relative;
+  appearance: none;
   height: 10px;
+  padding: 0;
   border-style: solid;
   border-width: 2px;
   border-image: url('/assets/mc/gui/xp_bg.png') 1 fill / 2px stretch;
@@ -498,14 +505,13 @@ select.mc-input option {
   image-rendering: pixelated;
 }
 
-.mc-xp > i {
-  position: absolute;
-  inset: 0 auto 0 0;
-  display: block;
-  border-style: solid;
-  border-width: 2px;
-  border-image: url('/assets/mc/gui/xp_progress.png') 1 fill / 2px stretch;
-  image-rendering: pixelated;
+.mc-xp::-webkit-progress-bar {
+  background: #162018;
+}
+
+.mc-xp::-webkit-progress-value,
+.mc-xp::-moz-progress-bar {
+  background: var(--emerald);
 }
 
 /* ---------- Частицы (логин) ---------- */

@@ -18,3 +18,5 @@ hs_err_pid*
 Thumbs.db
 node_modules/
 panel/frontend/dist/
+panel/frontend/playwright-report/
+panel/frontend/test-results/

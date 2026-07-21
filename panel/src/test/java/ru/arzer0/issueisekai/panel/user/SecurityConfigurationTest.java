@@ -82,6 +82,10 @@ class SecurityConfigurationTest {
 
     @Test
     void protectsRoutesCsrfLoginSessionAndLogout() throws Exception {
+        mvc.perform(get("/fonts/Monocraft.ttf"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", containsString("font")))
+                .andExpect(header().string("Cache-Control", containsString("max-age=31536000")));
         mvc.perform(get("/reports"))
                 .andExpect(status().isFound())
                 .andExpect(redirectedUrl("http://localhost/login"));

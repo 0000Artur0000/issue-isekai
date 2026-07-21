@@ -138,7 +138,7 @@ function Shell() {
         </NavLink>
         <nav className="app-nav" aria-label={t('nav.main')}>
           {NAV_ITEMS.filter((item) => can(me, item.permission)).map((item) => (
-            <NavLink key={item.to} to={item.to}>
+            <NavLink key={item.to} to={item.to} aria-label={t(item.label)}>
               <img className="mc-ico" src={`${MC}/${item.icon}`} alt="" />
               <span className="nav-label">{t(item.label)}</span>
             </NavLink>

@@ -1,20 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import { api, can } from './api'
 import { useAuth } from './auth'
 import { statusLabel, t } from './i18n'
 import {
-  FilterBar,
   filterQuery,
-  ReportCard,
   STATUS_ICONS,
   STATUSES,
   type Page,
   type Priority,
   type ReportSummary,
   type Status,
-} from './reports'
+} from './report-model'
+import { FilterBar, ReportCard } from './reports'
 
 // ponytail: 100 per column per plan; in-column pagination only when this ceiling hurts
 const COLUMN_SIZE = 100
@@ -27,6 +25,7 @@ export default function Board() {
   const [params] = useSearchParams()
   const [columns, setColumns] = useState<Columns | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [moving, setMoving] = useState<string | null>(null)
   const query = filterQuery(params)
   const canMove = can(me, 'reports.status.update')
 
@@ -77,12 +76,9 @@ export default function Board() {
     )
   }
 
-  async function onDragEnd({ draggableId, source, destination }: DropResult) {
-    if (!columns || !destination || destination.droppableId === source.droppableId) return
-    const from = source.droppableId as Status
-    const to = destination.droppableId as Status
-    const report = columns[from].reports.find((candidate) => candidate.id === draggableId)
-    if (!report) return
+  async function moveReport(report: ReportSummary, to: Status) {
+    if (!columns || report.status === to) return
+    const from = report.status
 
     let duplicateOfId: string | null = null
     if (to === 'DUPLICATE') {
@@ -100,8 +96,8 @@ export default function Board() {
 
     const previous = columns
     const fromReports = previous[from].reports.filter((candidate) => candidate.id !== report.id)
-    const toReports = [...previous[to].reports]
-    toReports.splice(destination.index, 0, { ...report, status: to })
+    const toReports = [{ ...report, status: to }, ...previous[to].reports]
+    setMoving(report.id)
     setColumns({
       ...previous,
       [from]: { reports: fromReports, total: previous[from].total - 1 },
@@ -125,6 +121,8 @@ export default function Board() {
     } catch (cause) {
       setColumns(previous)
       window.alert((cause as Error).message)
+    } finally {
+      setMoving(null)
     }
   }
 
@@ -147,60 +145,57 @@ export default function Board() {
         </p>
       )}
       {columns && (
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div className="board">
-            {STATUSES.map((status) => {
-              const column = columns[status]
-              return (
-                <section
-                  key={status}
-                  className={`column mc-panel status-${status}`}
-                  aria-label={statusLabel(status)}
-                >
-                  <h2>
-                    <img className="mc-ico" src={`/assets/mc/${STATUS_ICONS[status]}`} alt="" />
-                    {statusLabel(status)}
-                    <span className="column-count">{column.total}</span>
-                  </h2>
-                  <Droppable droppableId={status}>
-                    {(provided) => (
-                      <div ref={provided.innerRef} {...provided.droppableProps} className="cards">
-                        {column.reports.map((report, index) => (
-                          <Draggable
-                            key={report.id}
-                            draggableId={report.id}
-                            index={index}
-                            isDragDisabled={!canMove}
+        <div className="board">
+          {STATUSES.map((status) => {
+            const column = columns[status]
+            return (
+              <section
+                key={status}
+                className={`column mc-panel status-${status}`}
+                aria-label={statusLabel(status)}
+              >
+                <h2>
+                  <img className="mc-ico" src={`/assets/mc/${STATUS_ICONS[status]}`} alt="" />
+                  {statusLabel(status)}
+                  <span className="column-count">{column.total}</span>
+                </h2>
+                <div className="cards">
+                  {column.reports.map((report) => (
+                    <div key={report.id} className="board-card">
+                      <ReportCard report={report} onChange={replaceReport} />
+                      {canMove && (
+                        <label className="card-status-control">
+                          <span>{t('report.form-status')}</span>
+                          <select
+                            className="mc-input"
+                            value={report.status}
+                            disabled={moving === report.id}
+                            onChange={(event) => moveReport(report, event.target.value as Status)}
                           >
-                            {(dragProvided) => (
-                              <div
-                                ref={dragProvided.innerRef}
-                                {...dragProvided.draggableProps}
-                                {...dragProvided.dragHandleProps}
-                              >
-                                <ReportCard report={report} onChange={replaceReport} />
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                        {column.reports.length === 0 && (
-                          <div className="column-empty">
-                            <img src="/assets/mc/big/chest_minecart.png" alt="" />
-                            {t('board.empty')}
-                          </div>
-                        )}
-                        {column.total > column.reports.length && (
-                          <p className="meta">{t('board.more', { count: column.total - column.reports.length })}</p>
-                        )}
-                      </div>
-                    )}
-                  </Droppable>
-                </section>
-              )
-            })}
-          </div>
-        </DragDropContext>
+                            {STATUSES.map((value) => (
+                              <option key={value} value={value}>
+                                {statusLabel(value)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                    </div>
+                  ))}
+                  {column.reports.length === 0 && (
+                    <div className="column-empty">
+                      <img src="/assets/mc/big/chest_minecart.png" alt="" />
+                      {t('board.empty')}
+                    </div>
+                  )}
+                  {column.total > column.reports.length && (
+                    <p className="meta">{t('board.more', { count: column.total - column.reports.length })}</p>
+                  )}
+                </div>
+              </section>
+            )
+          })}
+        </div>
       )}
     </>
   )

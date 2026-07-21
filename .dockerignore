@@ -3,6 +3,10 @@
 .idea
 .vscode
 **/build
+**/node_modules
+panel/frontend/dist
+panel/frontend/playwright-report
+panel/frontend/test-results
 .env
 data
 *.log

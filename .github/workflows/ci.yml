@@ -40,9 +40,32 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
+      - run: npm ci
+        working-directory: panel/frontend
       - run: npm test
         working-directory: panel/frontend
+      - run: npm run lint
+        working-directory: panel/frontend
+      - run: npm run build
+        working-directory: panel/frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: panel/frontend
+      - run: shellcheck install.sh scripts/*.sh
       - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+      - name: Installer smoke
+        shell: bash
+        run: |
+          fixture="$(mktemp -d)"
+          rmdir "$fixture"
+          trap 'rm -rf "$fixture"' EXIT
+          ./gradlew :paper-plugin:jar :panel:bootJar \
+            -Porg.gradle.java.installations.paths="$JDK25_HOME" \
+            -PreleaseVersion=0.0.0 --no-daemon
+          ./scripts/build-release-bundle.sh 0.0.0 \
+            ghcr.io/0000artur0000/issue-isekai-panel \
+            sha256:0000000000000000000000000000000000000000000000000000000000000000 \
+            "$fixture"
+          ./scripts/installer-smoke.sh "$fixture"
       - run: ./gradlew clean check :paper-plugin:jar :panel:bootJar -Porg.gradle.java.installations.paths="$JDK25_HOME" -PreleaseVersion="${{ steps.version.outputs.value }}" --no-daemon
       - run: docker compose up -d --build --wait
         env:
@@ -50,8 +73,13 @@ jobs:
       - run: ./scripts/smoke.sh
         env:
           PANEL_URL: http://127.0.0.1:18080
+      - run: npm run test:e2e
+        working-directory: panel/frontend
+        env:
+          PANEL_URL: http://127.0.0.1:18080
       - if: always()
         run: docker compose down -v --remove-orphans
+      - run: ./scripts/migration-smoke.sh
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: IssueIsekai-plugin

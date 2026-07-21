@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM eclipse-temurin:25-jdk-alpine AS java25
 
 FROM eclipse-temurin:21-jdk-alpine AS build
@@ -7,7 +8,9 @@ COPY --from=java25 /opt/java/openjdk /opt/java25/openjdk
 # Node 22 для frontend-сборки внутри Gradle (npmCi/npmBuild)
 COPY --from=node:22-alpine /usr/local /usr/local
 COPY . .
-RUN ./gradlew :panel:bootJar -Porg.gradle.java.installations.paths=/opt/java25/openjdk \
+RUN --mount=type=cache,target=/root/.gradle \
+    --mount=type=cache,target=/root/.npm \
+    ./gradlew :panel:bootJar -Porg.gradle.java.installations.paths=/opt/java25/openjdk \
     -PreleaseVersion="$RELEASE_VERSION" --no-daemon
 
 FROM eclipse-temurin:25-jre-alpine
